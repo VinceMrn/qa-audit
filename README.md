@@ -1,8 +1,8 @@
 # QA Live
 
-A Claude Code plugin that runs a real QA pass on your web project: it drives a visible
-browser, works out what your project actually is, tests it, records a chaptered video,
-and hands you a self-contained HTML report.
+A Claude Code plugin that runs a real QA pass on your web project: it drives a browser,
+works out what your project actually is, tests it, and hands you a self-contained HTML
+report with the measurements to back every finding.
 
 It is not a test runner and it does not replace your test suite. It is the pass a careful
 human would do before a demo — clicking through the app, watching the console, checking
@@ -10,13 +10,10 @@ what breaks on a phone — except it writes the report for you.
 
 ## What you get
 
-**A video** (`.webm`, chaptered) — every interaction is highlighted before it happens, so
-the recording is watchable rather than a blur of instant clicks. Usable as-is for a demo,
-a bug report, or a walkthrough.
-
-**A report** (`.html`, single file, no assets) — metrics, findings graded bug / warning /
-info with the measurement that proves each one, what works, and embedded screenshots.
-Opens anywhere, mails as one attachment, follows the reader's light or dark theme.
+**A report** (`.html`, single file, no assets) — metrics, the coverage it ran, findings
+graded bug / warning / info each with the measurement that proves it, what works, and
+embedded screenshots with the problem areas outlined. Opens anywhere, mails as one
+attachment, follows the reader's light or dark theme.
 
 ## Requirements
 
@@ -46,7 +43,7 @@ Just ask, in whatever language you work in:
 ```
 Test my project
 Run a QA pass on http://localhost:3000
-Audit https://example.com and record a video
+Audit https://example.com
 ```
 
 Claude will look at your project, **propose a test plan, and wait for your go-ahead**
@@ -63,8 +60,33 @@ funnel, a WebGL canvas, filters, dialogs — not from a fixed checklist. You con
 The accepted plan is saved to `.qa-live/plan.json`, so the next run replays the same
 coverage and the two reports are comparable.
 
-**3. Run.** Executes the plan with the camera rolling, measuring before/after state around
-every interaction, then writes the report and cleans up after itself.
+**3. Run.** Executes the plan, measuring before/after state around every interaction with
+a set of built-in probes, then writes the report and cleans up after itself.
+
+## Built-in probes
+
+A small measurement library is injected into the page and survives reloads, so findings
+come from one short call instead of a wall of improvised JavaScript:
+
+| Probe | Returns |
+|---|---|
+| `qa.box(sel)` | position, size, centre point, visibility |
+| `qa.contrast(sel)` | WCAG ratio and AA/AAA — or a refusal, see below |
+| `qa.chain(sel)` | ancestor chain with display / visibility / opacity |
+| `qa.perf()` | timing, requests, page weight, heaviest resources, external hosts |
+| `qa.media()` | broken images, `alt` coverage, lazy count, formats |
+| `qa.links()` | same-origin links, `#` placeholders, anchors that resolve |
+| `qa.dialog(sel)` | `role`, `aria-modal`, focus placement, scroll lock |
+| `qa.scroller(sel?)` | the container the wheel will actually scroll |
+| `qa.overflow()` | horizontal overflow and what causes it |
+| `qa.webgl(sel?)` | context version, context loss, CSS size vs backing buffer |
+| `qa.outline()` | headings, landmarks, focusable count |
+| `qa.at(f, {…})` | scroll to a fraction of the page and read elements there |
+
+`qa.contrast` is the one worth calling out: it **refuses to answer** when the backdrop is
+a gradient, an image, a canvas, or a positioned layer painting behind the text — and when
+the element is off-screen. Each refusal names what is in the way. A contrast number
+computed from the wrong backdrop is worse than no number at all.
 
 ## What makes it different
 
@@ -89,8 +111,7 @@ Everything lands in `.qa-live/` inside your project:
 .qa-live/
 ├── plan.json           the accepted test plan, reused on later runs
 ├── reports/            self-contained HTML reports
-├── screenshots/        JPEG captures embedded in the reports
-└── videos/             chaptered .webm recordings
+└── screenshots/        JPEG captures embedded in the reports
 ```
 
 Add `.qa-live/` to your `.gitignore` — Claude will offer to.
@@ -123,8 +144,7 @@ The input schema is documented in
 
 - Tested against static sites and client-rendered apps. Frameworks with their own dev
   server should work through the project's own start command, but coverage there is thinner.
-- Reports with a dozen full-page screenshots land around 2–4 MB.
-- Video length tracks how much you ask it to test; expect tens of MB for a full pass.
+- Reports with a dozen full-page screenshots land under 2 MB.
 - It tests what it can reach. Anything behind credentials needs you to say how to log in.
 
 ## License

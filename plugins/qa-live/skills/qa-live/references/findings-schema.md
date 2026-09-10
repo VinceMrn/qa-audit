@@ -23,13 +23,9 @@ sections are left out of the report entirely.
     { "value": "1.4", "label": "MB page weight" }
   ],
 
-  "video": {
-    "path": ".qa-live/videos/run.webm",
-    "note": "WebM · 18 MB · 5 chapters",
-    "chapters": [
-      { "title": "Home — console & network", "detail": "Load, console audit, failed requests." }
-    ]
-  },
+  "chapters": [
+    { "title": "Home — console & network", "detail": "Load, console audit, failed requests." }
+  ],
 
   "findings": [
     {
@@ -60,6 +56,10 @@ sections are left out of the report entirely.
 
 **`metrics.tone`** — `good` (green), `warn` (amber), `bad` (red), or omitted (default
 text colour). Four metrics fit on one row; aim for four.
+
+**`chapters`** — what the run actually covered, in order. Rendered as a numbered
+"Coverage" list, so a reader can see the scope before reading the findings. Mirror the
+chapters from `plan.json`.
 
 **`findings.level`** — `bug` (red, broken), `warning` (amber, degraded or accessibility),
 `info` (blue, improvable). Order most severe first; the report preserves array order.

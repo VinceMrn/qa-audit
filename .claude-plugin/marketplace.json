@@ -10,8 +10,8 @@
     {
       "name": "qa-live",
       "displayName": "QA Live",
-      "description": "Live QA audits for web projects. Drives a real browser, adapts its test plan to the project, records a chaptered video and produces a self-contained HTML report — with the discipline to avoid false positives.",
-      "version": "0.1.0",
+      "description": "Live QA audits for web projects. Drives a real browser, adapts its test plan to the project, measures with built-in probes and produces a self-contained HTML report — with the discipline to avoid false positives.",
+      "version": "0.2.0",
       "source": "./plugins/qa-live",
       "category": "testing",
       "license": "MIT",

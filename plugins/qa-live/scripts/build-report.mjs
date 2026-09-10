@@ -40,19 +40,14 @@ function buildHTML(d) {
     .map((m) => `<div class="metric ${m.tone ?? ''}"><div class="n">${esc(m.value)}</div><div class="l">${m.label ?? ''}</div></div>`)
     .join('');
 
-  const video = d.video ?? null;
-  const chapters = (video?.chapters ?? [])
+  const chapters = (d.chapters ?? [])
     .map((c, i) => `<li><span class="ch-num">${i + 1}</span><div><strong>${esc(c.title)}</strong><span>${c.detail ?? ''}</span></div></li>`)
     .join('');
 
-  const videoBlock = video
+  const chaptersBlock = chapters
     ? `
-  <h2>Recording</h2>
-  <div class="panel">
-    <div class="path">${esc(video.path ?? '')}</div>
-    <p class="note">${video.note ?? ''}</p>
-    <ol class="chapters">${chapters}</ol>
-  </div>`
+  <h2>Coverage</h2>
+  <div class="panel"><ol class="chapters">${chapters}</ol></div>`
     : '';
 
   const findings = (d.findings ?? [])
@@ -133,11 +128,9 @@ function buildHTML(d) {
   .metric.warn .n { color:var(--amber); }
   .metric.bad .n { color:var(--red); }
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:24px; }
-  .path { font-family:var(--mono); font-size:12.5px; background:var(--bg); border:1px solid var(--line);
-    border-radius:8px; padding:13px 15px; margin-bottom:8px; overflow-x:auto; white-space:nowrap; color:var(--accent); }
-  .note { font-size:12.5px; color:var(--muted); margin:0 0 22px; }
   ol.chapters { list-style:none; margin:0; padding:0; }
   ol.chapters li { display:flex; gap:15px; align-items:flex-start; padding:13px 0; border-top:1px solid var(--line); }
+  ol.chapters li:first-child { border-top:0; padding-top:0; }
   .ch-num { flex:none; width:26px; height:26px; border-radius:50%; background:var(--accent);
     color:#fff; font:600 12px/26px var(--mono); text-align:center; }
   ol.chapters strong, ul.ok strong { display:block; font-size:14.5px; font-weight:600; }
@@ -188,7 +181,7 @@ function buildHTML(d) {
 
   <h2>Summary</h2>
   <div class="metrics">${metrics}</div>
-${videoBlock}
+${chaptersBlock}
 
   <h2>Findings</h2>
 ${findings || '  <div class="panel">No findings.</div>'}

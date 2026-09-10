@@ -1,12 +1,12 @@
 ---
 name: qa-live
-description: Run a live QA audit of a web project — headed browser, narrated chaptered video, and a self-contained HTML report. Use when the user asks to test a site or app, run a QA pass, audit accessibility or performance in the browser, check for regressions, or record a demo/test video.
+description: Run a live QA audit of a web project — drives a real browser, measures what it finds, and produces a self-contained HTML report with annotated screenshots. Use when the user asks to test a site or app, run a QA pass, audit accessibility or performance in the browser, or check for regressions.
 ---
 
 # QA live
 
-Act as a QA engineer testing a project live, with the camera rolling. Two deliverables:
-a **chaptered video** and a **self-contained HTML report**.
+Act as a QA engineer testing a project in a real browser. Deliverable: a **self-contained
+HTML report** — measurements, graded findings, annotated screenshots, one file.
 
 Argument: a URL (`https://…`), a local port (`3000`), a project path, or nothing (current project).
 
@@ -23,6 +23,10 @@ Find out what this project actually is before deciding what to test.
 - `package.json` — scripts, framework, dependencies.
 - Routes / entry points — `app/`, `pages/`, `src/routes/`, or plain `.html` files.
 - Once served, the DOM: forms, dialogs, canvases, media, `localStorage`, auth walls.
+
+There may be neither README nor `package.json`. Read the entry HTML and its scripts
+instead — script tags, inlined data, and library names tell you most of it. Never `cat`
+a file blindly; check its size first, since assets are sometimes inlined into JS.
 
 Then get it running. `file://` is **blocked** by playwright-cli, so an HTTP server is
 required even for a static site. In order of preference:
@@ -49,15 +53,16 @@ step that replaces a fixed checklist: chapters come from the project, not from a
 
 Cover what this project actually has. A few examples, not a menu to follow:
 
-| If the project has… | A chapter worth running |
+| If the project has… | Worth a chapter |
 |---|---|
-| A landing page | Console and network audit, visual check |
+| A landing page | Console and network audit, page weight |
 | Responsive layout | A second viewport (390×844), navigation as it actually exists |
 | Auth | Sign-in flow, protected route, sign-out |
 | Forms | Validation, error states, submission |
 | A cart / checkout | The funnel end to end |
 | Dialogs, drawers, lightboxes | Focus handling, `Escape`, background scroll lock |
-| Canvas / WebGL / video | Renders, resizes, no context loss |
+| Canvas / WebGL / video | Renders, resizes, no context loss, `prefers-reduced-motion` |
+| Scroll-driven animation | State sampled across the scroll range |
 | Filters, search, sorting | Before/after state measurements |
 | Internal links, downloads | HTTP status of every one |
 | Images and media | Lazy-load, broken assets, `alt` coverage |
@@ -77,53 +82,81 @@ project has clearly changed.
 ### Setup
 
 ```bash
-playwright-cli open <URL> --browser=chrome --headed
-playwright-cli video-start .qa-live/videos/<name>.webm
+playwright-cli open <URL> --browser=chrome
+playwright-cli run-code --filename="${CLAUDE_PLUGIN_ROOT}/scripts/probes.js"
 ```
 
 Drop `--browser=chrome` if Chrome is not installed; chromium is the default.
+Add `--headed` only if the user wants to watch.
 
-Put every artifact under `.qa-live/` in the project — `videos/`, `screenshots/`,
-`reports/`, plus `plan.json`. Create the directories first. Suggest adding `.qa-live/`
-to `.gitignore` once, if it is a git repo and not already ignored.
+Artifacts go under `.qa-live/` in the project — `screenshots/`, `reports/`, plus
+`plan.json`. Create the directories first, and suggest adding `.qa-live/` to
+`.gitignore` once, if it is a git repo and not already ignored.
 
 **Wait for the app to be genuinely ready.** Loaders, heavy assets and async init are
-common. Probe real state (loader opacity, canvas presence, element counts) rather than
-sleeping blindly.
+common. Probe real state (loader opacity or removal, canvas presence, element counts)
+rather than sleeping blindly.
 
-### Interaction protocol
+### Measure with the probes
 
-Every interaction that appears on camera:
+`probes.js` installs `window.qa` and re-installs it after every reload. Prefer it over
+hand-written expressions — one short call replaces a long inline script, and the probes
+already know where the traps are.
+
+| Probe | Returns |
+|---|---|
+| `qa.box(sel)` | position, size, `cx`/`cy` centre for `mousemove`, visibility |
+| `qa.contrast(sel)` | WCAG ratio and AA/AAA — **or `reliable:false` with the reason** |
+| `qa.chain(sel)` | ancestor chain with display / visibility / opacity — the "find the mechanism" probe |
+| `qa.perf()` | timing, request count, page weight, heaviest resources, external hosts |
+| `qa.media()` | broken images, `alt` coverage, lazy count, formats, video errors |
+| `qa.links()` | same-origin links, `#` placeholders, whether each anchor resolves |
+| `qa.dialog(sel)` | `role`, `aria-modal`, label, focus placement, scroll lock |
+| `qa.scroller(sel?)` | the container the wheel will actually scroll, with its centre |
+| `qa.overflow()` | horizontal overflow and the elements causing it |
+| `qa.webgl(sel?)` | context version, context loss, CSS size vs backing buffer |
+| `qa.outline()` | headings, landmarks, `aria-hidden` count, focusable count |
+| `qa.at(f, {k: sel})` | scrolls to fraction `f` and reads those elements — one call per sample |
+
+Call them through `--raw eval` and wrap in `JSON.stringify`:
 
 ```bash
-playwright-cli highlight <ref|selector> --style="outline: 3px solid #e85d26"
-sleep 1
-playwright-cli mousemove <x> <y>     # x AND y — the element's real centre
-sleep 1
-playwright-cli highlight --hide      # required before clicking, see gotchas
-# then: click / fill / press / mousewheel
+playwright-cli --raw eval "JSON.stringify(qa.perf())"
+playwright-cli --raw eval "JSON.stringify(qa.at(0.5, {alt:'#g-alt', spd:'#g-spd'}))"
 ```
 
-Get the centre from `getBoundingClientRect()` rather than guessing. Between chapters:
+`qa.contrast` refuses to answer rather than guess: off-screen elements, gradient or image
+backdrops, and positioned layers painting behind the text all return `reliable:false` with
+the reason and the element's centre point. **Trust that refusal** — scroll it into view and
+retry, or sample the rendered pixels from a screenshot. A contrast number computed from
+the wrong backdrop is worse than no number.
+
+For anything the probes do not cover, write a grouped IIFE returning one JSON object
+rather than several small evals.
+
+### Interact
+
+Interact directly — click, fill, press, `mousewheel`. Get coordinates from `qa.box(sel).cx/cy`
+rather than guessing.
+
+Use `highlight` only when a screenshot needs to point at something:
 
 ```bash
-playwright-cli video-chapter "<title>" --description="…" --duration=3000
+playwright-cli highlight <sel> --style="outline: 3px solid #e85d26"
+playwright-cli screenshot --filename=.qa-live/screenshots/<n>-<name>.jpg
+playwright-cli highlight --hide
 ```
 
-Capture screenshots as **`.jpg`** — `playwright-cli screenshot --filename=<dir>/<name>.jpg`.
-JPEG is roughly five times smaller than PNG for the same frame, which keeps the embedded
-report shareable. There is no image post-processing anywhere in this skill.
+Orange for what is being demonstrated, red (`#ff2d2d`) for an anomaly. Always hide the
+highlight before clicking anything — see the gotchas.
+
+Capture screenshots as **`.jpg`**: roughly five times smaller than PNG for the same frame,
+which keeps the embedded report shareable. There is no image post-processing anywhere.
 
 ### Measure, don't describe
 
-A finding is only worth reporting if you can show the number behind it. Prefer one
-grouped probe per chapter over many small ones:
-
-```bash
-playwright-cli --raw eval "(() => { /* … */ return JSON.stringify({ … }); })()"
-```
-
-Record before/after pairs around every interaction — that pair *is* the evidence.
+A finding is only worth reporting if you can show the number behind it. Record before/after
+pairs around every interaction — that pair *is* the evidence.
 
 ---
 
@@ -135,14 +168,15 @@ A report that cries wolf gets uninstalled. Four rules:
 responses. Re-test before concluding.
 
 **Find the mechanism before judging structure.** A `display:none` may be a progressive
-reveal driven by a class. Walk the ancestor chain, find the CSS rule or the JS that sets
-it, then test the trigger. What looks broken is often deliberate.
+reveal driven by a class; an element that will not take focus may sit under a
+`visibility:hidden` reveal wrapper that has not fired yet. Run `qa.chain(sel)`, find the
+rule or the script responsible, then test the trigger. What looks broken is often deliberate.
 
-**Suspect the instrument before the project.** Three measurements that accuse wrongly:
-reading pixels from a WebGL canvas returns black without `preserveDrawingBuffer` (confirm
-with a composite screenshot instead); a click that does nothing is usually your own
-highlight overlay; a wheel event that does nothing means the cursor is outside the
-scrollable container.
+**Suspect the instrument before the project.** Measurements that accuse wrongly: reading
+pixels from a WebGL canvas returns black without `preserveDrawingBuffer` (confirm with a
+composite screenshot); a click that does nothing is usually your own highlight overlay; a
+wheel event that does nothing means the cursor is outside the scrollable container; any
+measurement taken on an off-screen element is meaningless.
 
 **Name what is done well, as precisely as the bugs.** A good pattern already in the
 codebase is the best fix to suggest for a bad one elsewhere — and it tells the developer
@@ -157,11 +191,12 @@ Then grade: `bug` (broken), `warning` (degraded or accessibility), `info` (impro
 | Gotcha | Work around it |
 |---|---|
 | `file://` is blocked | serve over HTTP |
-| **An active `highlight` makes `click` fail on small targets** (checkbox, icon): the overlay covers the actionability hit-test point and Playwright waits forever | `highlight --hide` right before clicking, then `mousedown` / `mouseup` — the hover is still filmed |
-| The wheel only scrolls the container **under the cursor** | `mousemove` to the real scroller's centre first; find it via `overflowY` + `scrollHeight > clientHeight` |
+| **An active `highlight` makes `click` fail on small targets** (checkbox, icon): the overlay covers the actionability hit-test point and Playwright waits forever | `highlight --hide` before clicking, then `mousedown` / `mouseup` |
+| The wheel only scrolls the container **under the cursor** | `qa.scroller()`, then `mousemove` to its centre |
 | Refs (`e130`) go stale as soon as the DOM changes | re-`snapshot` after a click, or target by CSS / `getByRole(...)` |
 | `eval` takes an **expression**, not statements | wrap in an IIFE: `(() => { … return x })()` |
 | Dynamic `import()` is unavailable inside `run-code` | use the Playwright API directly (e.g. `page.screenshot({ path })`) |
+| Emulating media needs `run-code` | `page.emulateMedia({ reducedMotion: 'reduce' })`, then reload |
 | The shell's working directory resets between calls | `cd` inside each command |
 | `.playwright-cli/` is created in the working directory | remove it during cleanup |
 
@@ -200,5 +235,5 @@ Deliverables under `.qa-live/` stay.
 ## Reporting back
 
 Close with a short summary in the user's language: confirmed bugs with the measurement
-that proves each one, accessibility notes, what works well, and the paths to both
-deliverables. Mention the false leads you ruled out — it is what makes the rest credible.
+that proves each one, accessibility notes, what works well, and the path to the report.
+Mention the false leads you ruled out — it is what makes the rest credible.
