@@ -44,6 +44,21 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/
 
 Remember how you started it — you must stop it in phase 3.
 
+### Load the matching recipes
+
+Recipes carry domain knowledge a generalist pass would miss. Read the ones that match
+what you found, and only those — they exist so the skill stays small while going deep
+where it matters.
+
+| Signal in the project | Read |
+|---|---|
+| `<canvas>`, Three.js, Babylon, PixiJS, WebGL | [recipes/webgl.md](recipes/webgl.md) |
+| `<dialog>`, modal, drawer, sheet, lightbox, cookie banner | [recipes/overlays.md](recipes/overlays.md) |
+| `<form>`, sign-in, sign-up, checkout, contact | [recipes/forms.md](recipes/forms.md) |
+
+None matching is normal — the phase 2 table below still applies. If a project type comes
+up repeatedly and no recipe covers it, say so at the end: that is how the set grows.
+
 ---
 
 ## Phase 2 — Plan
@@ -75,6 +90,19 @@ and re-run the same chapters instead of redoing recon — that is what makes two
 comparable over time. Mention when you are reusing a saved plan, and re-run recon if the
 project has clearly changed.
 
+### Budgets
+
+`plan.json` may declare a `budgets` object — the project's own limits, which replace your
+judgement about what counts as too heavy or too slow. A 3D experience and a landing page
+do not share a weight budget, and only the developer knows which applies.
+
+Measure each declared budget, then emit the comparison in `findings.json` under `budgets`
+so the report renders a pass/fail table. Going over budget is a finding in its own right;
+staying within it is worth stating too, because it turns the next regression into a signal.
+
+If no budgets are declared, judge with the usual defaults and **offer to write the ones
+this run implies** — measured values make far better starting budgets than invented ones.
+
 ---
 
 ## Phase 3 — Run
@@ -89,9 +117,10 @@ playwright-cli run-code --filename="${CLAUDE_PLUGIN_ROOT}/scripts/probes.js"
 Drop `--browser=chrome` if Chrome is not installed; chromium is the default.
 Add `--headed` only if the user wants to watch.
 
-Artifacts go under `.qa-live/` in the project — `screenshots/`, `reports/`, plus
-`plan.json`. Create the directories first, and suggest adding `.qa-live/` to
-`.gitignore` once, if it is a git repo and not already ignored.
+Artifacts go under `.qa-live/` in the project — `screenshots/`, `reports/`, `runs/`,
+plus `plan.json`. Create the directories first, and suggest adding `.qa-live/` to
+`.gitignore` once, if it is a git repo and not already ignored. `runs/` holds one JSON
+per audit and is what the next run compares against, so never overwrite an old one.
 
 **Wait for the app to be genuinely ready.** Loaders, heavy assets and async init are
 common. Probe real state (loader opacity or removal, canvas presence, element counts)
@@ -204,11 +233,24 @@ Then grade: `bug` (broken), `warning` (degraded or accessibility), `info` (impro
 
 ## Report
 
-Write the findings as JSON, then generate the HTML:
+Write the findings to the run history, then generate the HTML:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/build-report.mjs" <findings.json> .qa-live/reports/<name>.html
+# keep every run, named so they sort chronologically
+node "${CLAUDE_PLUGIN_ROOT}/scripts/build-report.mjs" \
+  .qa-live/runs/<YYYY-MM-DD-HHMM>.json \
+  .qa-live/reports/<YYYY-MM-DD-HHMM>.html \
+  --previous auto
 ```
+
+`--previous auto` picks the most recent other run in `.qa-live/runs/` and adds a
+**Since last run** section: how many findings are new, still open, and fixed. Pass an
+explicit path to compare against a specific run, or omit the flag on a first run — a
+missing previous run is a warning, never an error.
+
+Findings are matched across runs by their `id`, falling back to the title. **Give each
+finding a short stable `id`** (`contrast-hero`, `no-favicon`) and keep it identical
+between runs, otherwise rewording a title makes one finding look fixed and another new.
 
 The script embeds the screenshots, handles the full document (charset, light/dark theme,
 two-column layout) and needs no dependencies — **never hand-write that HTML.** Only write

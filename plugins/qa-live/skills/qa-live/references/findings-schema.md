@@ -27,8 +27,14 @@ sections are left out of the report entirely.
     { "title": "Home — console & network", "detail": "Load, console audit, failed requests." }
   ],
 
+  "budgets": [
+    { "label": "Page weight", "measured": "3.32 MB", "budget": "5 MB", "pass": true },
+    { "label": "Console errors", "measured": "1", "budget": "0", "pass": false }
+  ],
+
   "findings": [
     {
+      "id": "cart-total-ignores-discount",
       "level": "bug",
       "title": "Cart total ignores the discount code",
       "detail": "Applying <code>SAVE10</code> updates the badge but not the total.",
@@ -60,6 +66,15 @@ text colour). Four metrics fit on one row; aim for four.
 **`chapters`** — what the run actually covered, in order. Rendered as a numbered
 "Coverage" list, so a reader can see the scope before reading the findings. Mirror the
 chapters from `plan.json`.
+
+**`findings.id`** — a short stable slug identifying this finding across runs
+(`contrast-hero`, `no-favicon`). Matching falls back to the title when absent, so a
+reworded title then reads as one finding fixed and another appearing. Set an `id` on
+anything you expect to see again.
+
+**`budgets`** — the project's own limits from `plan.json`, already compared. `measured`
+and `budget` are display strings (keep the units), `pass` is the verdict. Rendered as a
+pass/fail table; omit the key entirely when the project declares no budgets.
 
 **`findings.level`** — `bug` (red, broken), `warning` (amber, degraded or accessibility),
 `info` (blue, improvable). Order most severe first; the report preserves array order.

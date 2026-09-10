@@ -63,6 +63,11 @@ coverage and the two reports are comparable.
 **3. Run.** Executes the plan, measuring before/after state around every interaction with
 a set of built-in probes, then writes the report and cleans up after itself.
 
+Along the way it loads **recipes** — small domain checklists for the kind of project it
+found. A WebGL project gets tested for context-loss recovery and `prefers-reduced-motion`
+in the render loop; a form gets tested for label coverage and error recovery. Recipes are
+read only when they match, so a project never pays for knowledge it does not need.
+
 ## Built-in probes
 
 A small measurement library is injected into the page and survives reloads, so findings
@@ -103,6 +108,38 @@ around not doing that:
   looks wrong".
 - **What works is listed as precisely as what doesn't**, so you know what not to break.
 
+## Comparing runs
+
+Every audit is kept as JSON under `.qa-live/runs/`. The next one compares against it and
+the report opens with what changed:
+
+```
+3 new     ·     6 still open     ·     1 fixed
+```
+
+Fixed findings are listed by name, and anything new is chipped in the findings list. So
+after fixing a contrast problem you re-run and the report tells you directly, instead of
+you diffing two documents by eye. Findings are matched on a stable `id`, so rewording a
+title does not fake a fix.
+
+## Budgets
+
+Declare your own limits in `.qa-live/plan.json` and the report judges against them
+instead of against someone else's idea of "too heavy":
+
+```json
+"budgets": { "pageWeightMB": 5, "consoleErrors": 0, "contrastMin": 4.5 }
+```
+
+| Metric | Measured | Budget | |
+|---|---|---|---|
+| Page weight | 3.32 MB | 5 MB | within |
+| Console errors | 1 | 0 | over |
+
+A 3D experience can set `pageWeightMB: 45` and stop being told it is bloated. It also
+becomes a regression guard: a new dependency taking you from 4 MB to 6 MB gets flagged,
+even though 6 MB alone would not look alarming.
+
 ## Artifacts
 
 Everything lands in `.qa-live/` inside your project:
@@ -110,6 +147,7 @@ Everything lands in `.qa-live/` inside your project:
 ```
 .qa-live/
 ├── plan.json           the accepted test plan, reused on later runs
+├── runs/               one JSON per audit — what the next run compares against
 ├── reports/            self-contained HTML reports
 └── screenshots/        JPEG captures embedded in the reports
 ```
@@ -135,15 +173,24 @@ The generator is a standalone script, useful in CI or from your own tooling:
 
 ```bash
 node plugins/qa-live/scripts/build-report.mjs findings.json report.html
+node plugins/qa-live/scripts/build-report.mjs findings.json report.html --previous auto
 ```
 
 The input schema is documented in
 [`findings-schema.md`](plugins/qa-live/skills/qa-live/references/findings-schema.md).
 
+## Adding a recipe
+
+Recipes live in `plugins/qa-live/skills/qa-live/recipes/`. Three ship today — `webgl`,
+`overlays`, `forms`. Adding one is a Markdown file plus a row in the detection table at
+the top of `SKILL.md`. Keep them short and specific: what to check, what the measurement
+looks like, and which traps produce false positives in that domain. Pull requests welcome.
+
 ## Limits, honestly
 
 - Tested against static sites and client-rendered apps. Frameworks with their own dev
   server should work through the project's own start command, but coverage there is thinner.
+- Three recipes so far, and only `webgl` and `overlays` are validated against real projects.
 - Reports with a dozen full-page screenshots land under 2 MB.
 - It tests what it can reach. Anything behind credentials needs you to say how to log in.
 

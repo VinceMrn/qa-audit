@@ -12,6 +12,13 @@ run skips recon and re-runs the same chapters, which is what makes two reports c
     "url": "http://localhost:3000",
     "readyCheck": "document.querySelector('#app') !== null"
   },
+  "budgets": {
+    "pageWeightMB": 5,
+    "consoleErrors": 0,
+    "contrastMin": 4.5,
+    "fcpMs": 1500,
+    "brokenMedia": 0
+  },
   "viewports": [
     { "label": "desktop", "width": 1440, "height": 900 },
     { "label": "mobile",  "width": 390,  "height": 844 }
@@ -50,6 +57,13 @@ in the page; poll it instead of sleeping. Omit `command` when testing a live URL
 **`chapters.steps`** — intent, in prose, not literal shell commands. The point is to
 re-run the same *coverage*, while still adapting to a DOM that has changed since the plan
 was written.
+
+**`budgets`** — the project's own limits, which replace the auditor's judgement about
+what counts as too heavy or too slow. Free-form: declare only what matters here. A 3D
+experience might legitimately set `pageWeightMB: 45` where a landing page sets `2`.
+Each declared budget is measured and rendered as a pass/fail row in the report, which
+also turns it into a regression guard — a jump from 4 MB to 6 MB gets flagged even though
+6 MB is not obviously wrong on its own.
 
 **`knownIntentional`** — the highest-value field over time. Every deliberate behaviour
 that once looked like a bug goes here, so the same false positive is never investigated

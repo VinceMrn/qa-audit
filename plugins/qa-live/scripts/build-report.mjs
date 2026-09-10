@@ -2,7 +2,11 @@
 /**
  * Build a self-contained HTML QA report from a findings JSON file.
  *
- *   node build-report.mjs <findings.json> <output.html>
+ *   node build-report.mjs <findings.json> <output.html> [--previous <file|auto>]
+ *
+ * With --previous, the report also shows what changed since that run: which
+ * findings are new, which are still open, and which have been fixed. Pass "auto"
+ * to pick the most recent other .json in the same directory as the input.
  *
  * No dependencies, no image processing, no platform-specific binaries — screenshots
  * are captured as JPEG during the run and embedded as-is. Runs the same on macOS,
@@ -10,8 +14,8 @@
  *
  * Input schema: ../skills/qa-live/references/findings-schema.md
  */
-import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
-import { extname, resolve } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { extname, resolve, dirname, join, basename } from 'node:path';
 
 const LEVELS = {
   bug: ['Bug', 'bug'],
@@ -31,7 +35,34 @@ function dataURI(file) {
   return `data:image/${type};base64,${readFileSync(file).toString('base64')}`;
 }
 
-function buildHTML(d) {
+/** Stable identity for matching a finding across runs: explicit id, else its title. */
+const keyOf = (f) =>
+  String(f.id || f.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
+
+/** Most recent other .json beside the input — used by `--previous auto`. */
+function findPrevious(inputPath) {
+  const dir = dirname(resolve(inputPath));
+  const self = basename(resolve(inputPath));
+  const candidates = readdirSync(dir)
+    .filter((f) => f.endsWith('.json') && f !== self)
+    .map((f) => ({ f, path: join(dir, f), mtime: statSync(join(dir, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
+  return candidates[0]?.path ?? null;
+}
+
+/** new / still-open / fixed, comparing this run's findings against a previous run. */
+function diffRuns(current, previous) {
+  const prev = new Map((previous.findings ?? []).map((f) => [keyOf(f), f]));
+  const cur = new Map((current.findings ?? []).map((f) => [keyOf(f), f]));
+  return {
+    isNew: new Set([...cur.keys()].filter((k) => !prev.has(k))),
+    stillOpen: [...cur.keys()].filter((k) => prev.has(k)).length,
+    fixed: [...prev.entries()].filter(([k]) => !cur.has(k)).map(([, f]) => f),
+    previousDate: previous.meta?.Date ?? null,
+  };
+}
+
+function buildHTML(d, delta = null) {
   const meta = Object.entries(d.meta ?? {})
     .map(([k, v]) => `<div><b>${esc(k)}</b> ${esc(v)}</div>`)
     .join('');
@@ -50,13 +81,52 @@ function buildHTML(d) {
   <div class="panel"><ol class="chapters">${chapters}</ol></div>`
     : '';
 
+  const budgets = (d.budgets ?? [])
+    .map((b) => `<tr class="${b.pass ? 'pass' : 'fail'}">
+        <td>${esc(b.label)}</td>
+        <td class="num">${esc(b.measured)}</td>
+        <td class="num">${esc(b.budget)}</td>
+        <td class="verdict">${b.pass ? 'within' : 'over'}</td>
+      </tr>`)
+    .join('\n');
+  const budgetsBlock = budgets
+    ? `
+  <h2>Budgets</h2>
+  <div class="panel">
+    <table class="budgets">
+      <thead><tr><th>Metric</th><th class="num">Measured</th><th class="num">Budget</th><th></th></tr></thead>
+      <tbody>${budgets}</tbody>
+    </table>
+    <p class="foot">Declared by the project in <code>.qa-live/plan.json</code>.</p>
+  </div>`
+    : '';
+
+  let deltaBlock = '';
+  if (delta) {
+    const fixedList = delta.fixed.length
+      ? `<ul class="fixed">${delta.fixed.map((f) => `<li>${esc(f.title)}</li>`).join('')}</ul>`
+      : '<p class="foot">Nothing from the previous run has been resolved yet.</p>';
+    deltaBlock = `
+  <h2>Since last run</h2>
+  <div class="panel">
+    <div class="delta">
+      <div class="d-item"><span class="d-n new">${delta.isNew.size}</span> new</div>
+      <div class="d-item"><span class="d-n open">${delta.stillOpen}</span> still open</div>
+      <div class="d-item"><span class="d-n done">${delta.fixed.length}</span> fixed</div>
+    </div>
+    ${delta.previousDate ? `<p class="foot">Compared against the run of ${esc(delta.previousDate)}.</p>` : ''}
+    ${delta.fixed.length ? '<h4>Resolved since then</h4>' + fixedList : fixedList}
+  </div>`;
+  }
+
   const findings = (d.findings ?? [])
     .map((f) => {
       const [label, cls] = LEVELS[String(f.level ?? 'info').toLowerCase()] ?? LEVELS.info;
       const evidence = f.evidence ? `<pre>${esc(f.evidence)}</pre>` : '';
       const fix = f.fix ? `<p class="fix"><strong>Suggested fix —</strong> ${f.fix}</p>` : '';
+      const isNew = delta?.isNew.has(keyOf(f)) ? '<span class="chip">new</span>' : '';
       return `      <article class="finding f-${cls}">
-        <header><span class="badge b-${cls}">${label}</span><h3>${esc(f.title)}</h3></header>
+        <header><span class="badge b-${cls}">${label}</span><h3>${esc(f.title)}</h3>${isNew}</header>
         <p>${f.detail ?? ''}</p>
         ${evidence}${fix}
       </article>`;
@@ -148,6 +218,29 @@ function buildHTML(d) {
   .b-warn { background:var(--amber); }
   .b-info { background:var(--blue); }
   .finding p { margin:0 0 14px; }
+  .chip { font:600 10px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase;
+    padding:4px 8px; border-radius:5px; border:1px solid var(--accent); color:var(--accent); }
+  .delta { display:flex; flex-wrap:wrap; gap:14px 40px; }
+  .d-item { font-size:13px; color:var(--muted); }
+  .d-n { display:block; font-size:34px; font-weight:700; line-height:1.1; letter-spacing:-.03em; color:var(--ink); }
+  .d-n.new { color:var(--amber); }
+  .d-n.done { color:var(--green); }
+  .panel h4 { font-size:13px; margin:22px 0 8px; }
+  ul.fixed { list-style:none; margin:0; padding:0; }
+  ul.fixed li { padding:9px 0 9px 30px; border-top:1px solid var(--line); position:relative;
+    font-size:14px; color:var(--muted); }
+  ul.fixed li::before { content:"\\2713"; position:absolute; left:2px; top:9px; color:var(--green); font-weight:700; }
+  .foot { font-size:12.5px; color:var(--muted); margin:14px 0 0; }
+  table.budgets { width:100%; border-collapse:collapse; font-size:14px; }
+  table.budgets th { text-align:left; font:600 11px/1 var(--mono); letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); padding-bottom:10px; border-bottom:1px solid var(--line); }
+  table.budgets td { padding:11px 0; border-top:1px solid var(--line); }
+  table.budgets .num { text-align:right; font-family:var(--mono); font-size:13px; padding-left:18px; }
+  table.budgets th.num { text-align:right; }
+  table.budgets .verdict { text-align:right; font:600 11px/1 var(--mono); letter-spacing:.1em;
+    text-transform:uppercase; padding-left:18px; white-space:nowrap; }
+  table.budgets tr.pass .verdict { color:var(--green); }
+  table.budgets tr.fail .verdict, table.budgets tr.fail .num { color:var(--red); }
   pre { font-family:var(--mono); font-size:12.5px; line-height:1.65; background:var(--bg);
     border:1px solid var(--line); border-radius:8px; padding:15px; overflow-x:auto; margin:0 0 14px; }
   code { font-family:var(--mono); font-size:.9em; background:var(--bg);
@@ -181,7 +274,7 @@ function buildHTML(d) {
 
   <h2>Summary</h2>
   <div class="metrics">${metrics}</div>
-${chaptersBlock}
+${deltaBlock}${budgetsBlock}${chaptersBlock}
 
   <h2>Findings</h2>
 ${findings || '  <div class="panel">No findings.</div>'}
@@ -197,9 +290,13 @@ ${shotsBlock}
 }
 
 function main() {
-  const [input, output] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const pi = args.indexOf('--previous');
+  const previousArg = pi !== -1 ? args[pi + 1] : null;
+  const [input, output] = args.filter((_, i) => i !== pi && (pi === -1 || i !== pi + 1));
+
   if (!input || !output) {
-    console.error('usage: build-report.mjs <findings.json> <output.html>');
+    console.error('usage: build-report.mjs <findings.json> <output.html> [--previous <file|auto>]');
     process.exit(1);
   }
 
@@ -211,8 +308,25 @@ function main() {
     process.exit(1);
   }
 
+  let delta = null, comparedTo = null;
+  if (previousArg) {
+    const prevPath = previousArg === 'auto' ? findPrevious(input) : resolve(previousArg);
+    if (!prevPath) {
+      console.warn('  ! no previous run found to compare against — skipping the delta section');
+    } else if (!existsSync(prevPath)) {
+      console.warn(`  ! previous run not found: ${prevPath} — skipping the delta section`);
+    } else {
+      try {
+        delta = diffRuns(data, JSON.parse(readFileSync(prevPath, 'utf8')));
+        comparedTo = prevPath;
+      } catch (err) {
+        console.warn(`  ! cannot parse previous run (${err.message}) — skipping the delta section`);
+      }
+    }
+  }
+
   const missing = (data.screenshots ?? []).filter((s) => !existsSync(resolve(s.file)));
-  const { html, embedded } = buildHTML(data);
+  const { html, embedded } = buildHTML(data, delta);
 
   try {
     writeFileSync(output, html, 'utf8');
@@ -223,6 +337,11 @@ function main() {
 
   const mb = (Buffer.byteLength(html) / 1048576).toFixed(2);
   console.log(`OK  ${output}  ${mb} MB  ·  ${embedded} screenshot(s)`);
+  if (delta) {
+    console.log(`    vs ${basename(comparedTo)}: ${delta.isNew.size} new, ${delta.stillOpen} still open, ${delta.fixed.length} fixed`);
+  }
+  const overBudget = (data.budgets ?? []).filter((b) => !b.pass);
+  if (overBudget.length) console.log(`    ${overBudget.length} budget(s) exceeded: ${overBudget.map((b) => b.label).join(', ')}`);
   for (const s of missing) console.warn(`  ! screenshot not found, skipped: ${s.file}`);
   if (mb > 8) console.warn('  ! report is large — consider fewer or smaller screenshots');
 }
