@@ -148,6 +148,27 @@ playwright-cli open <URL> --browser=chrome
 playwright-cli run-code --filename="${CLAUDE_PLUGIN_ROOT}/scripts/probes.js"
 ```
 
+Two more scripts are worth running once each on any real audit:
+
+```bash
+# ~90 accessibility rules, loaded from a CDN — the engine behind Lighthouse
+playwright-cli run-code --filename="${CLAUDE_PLUGIN_ROOT}/scripts/axe.js"
+
+# security, caching and compression headers — invisible from inside the page
+playwright-cli run-code --filename="${CLAUDE_PLUGIN_ROOT}/scripts/headers.js"
+```
+
+`axe.js` covers the mechanical accessibility checks far better than any probe could.
+It does **not** cover contrast over a canvas or gradient, state that only exists after a
+scroll, or whether focus landed somewhere sensible — that is what `qa.*` and the recipes
+are for. Run both; they overlap barely. Re-run axe after opening a dialog: it only sees
+what is in the DOM at that moment.
+
+`headers.js` reloads once with a listener attached and grades what comes back. On
+**localhost it says so and softens the verdict** — production headers usually come from
+the CDN or reverse proxy, so a missing CSP locally is a prompt to check the deployed site,
+not a defect. Caching and compression findings, on the other hand, are real either way.
+
 Drop `--browser=chrome` if Chrome is not installed; chromium is the default.
 Add `--headed` only if the user wants to watch.
 
@@ -204,6 +225,22 @@ rather than several small evals.
 
 Interact directly — click, fill, press, `mousewheel`. Get coordinates from `qa.box(sel).cx/cy`
 rather than guessing.
+
+**Target by ref inside a flow.** Every action prints the equivalent Playwright code, and
+its quality depends entirely on how you targeted:
+
+```bash
+playwright-cli fill "#email" "…"   →  page.locator('#email').fill('…')                  brittle
+playwright-cli fill e2 "…"         →  page.getByRole('textbox', { name: 'Email' })…     resilient
+```
+
+So `snapshot` first and act on refs whenever the step will end up in a generated test —
+role-based locators survive a redesign that renames a class. **Keep those emitted lines**
+(they are in the `### Ran Playwright code` block) and store them on the step as `code`;
+the spec generator prefers them over its own mapping. `generate-locator <ref> --raw`
+gives the same locator without performing the action.
+
+For throwaway measurement, a CSS selector is fine and faster.
 
 Use `highlight` only when a screenshot needs to point at something:
 
@@ -339,6 +376,10 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/build-report.mjs" \
   .qa-live/reports/<YYYY-MM-DD-HHMM>.html \
   --previous auto
 ```
+
+Add `--fail-on-budget` to exit non-zero when a declared budget is exceeded — that is what
+makes the generator usable as a CI gate. The report is still written, so the pipeline can
+publish it alongside the failure.
 
 `--previous auto` picks the most recent other run in `.qa-live/runs/` and adds a
 **Since last run** section: how many findings are new, still open, and fixed. Pass an

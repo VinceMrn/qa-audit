@@ -138,6 +138,12 @@ earlier ones, each step carries an expectation, and the whole thing is replayabl
 CSS selector or a Playwright locator expression (`getByRole('button', { name: 'Next' })`).
 `value` supports `{{fixture}}` substitution.
 
+**`steps[].code`** — the Playwright lines playwright-cli emitted while the step actually
+ran, captured verbatim from its `### Ran Playwright code` output. When present the spec
+generator uses these instead of mapping `actions`, which is strictly better: acting on a
+ref yields `getByRole('textbox', { name: 'Email' })` where a CSS selector yields
+`locator('#email')`. Keep `actions` too — it stays readable and is the fallback.
+
 **`steps[].expect`** — what must be true once the step's actions have run. Supported:
 `visible`, `hidden`, `url` (globs allowed), `title`, `text` (`{target, value}`),
 `count` (`{target, value}`), `focused`, `enabled`, `disabled`. **A step without an

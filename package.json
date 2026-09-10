@@ -1,0 +1,11 @@
+{
+  "name": "qa-live-dev",
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling for the qa-live plugin. Not published, not required to use the plugin.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "check": "node --check plugins/qa-live/scripts/build-report.mjs && node --check plugins/qa-live/scripts/generate-spec.mjs"
+  },
+  "engines": { "node": ">=18" }
+}

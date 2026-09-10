@@ -90,6 +90,18 @@ come from one short call instead of a wall of improvised JavaScript:
 | `qa.at(f, {…})` | scroll to a fraction of the page and read elements there |
 | `qa.sweep()` | the whole page summary in one call — for walking several routes |
 
+Two more scripts run once per audit:
+
+**axe-core** (`scripts/axe.js`) — the accessibility engine behind Lighthouse, ~90 rules,
+loaded from a CDN at run time with nothing to install. It handles the mechanical checks;
+the probes handle what it cannot see — contrast over a canvas, state that only exists
+after a scroll, where focus actually went.
+
+**Header audit** (`scripts/headers.js`) — security (`CSP`, `HSTS`, `X-Content-Type-Options`,
+`Referrer-Policy`…), caching on static assets, and uncompressed text. A whole category of
+real problems that is invisible from inside the page. On localhost it says so and softens
+the verdict, since those headers usually come from the CDN in production.
+
 `qa.contrast` is the one worth calling out: it **refuses to answer** when the backdrop is
 a gradient, an image, a canvas, or a positioned layer painting behind the text — and when
 the element is off-screen. Each refusal names what is in the way. A contrast number
@@ -180,6 +192,10 @@ A 3D experience can set `pageWeightMB: 45` and stop being told it is bloated. It
 becomes a regression guard: a new dependency taking you from 4 MB to 6 MB gets flagged,
 even though 6 MB alone would not look alarming.
 
+Pass `--fail-on-budget` to the generator and it exits non-zero when a budget is exceeded,
+which turns the whole thing into a CI gate. The report is still written, so your pipeline
+can publish it next to the failure.
+
 ## Artifacts
 
 Everything lands in `.qa-live/` inside your project:
@@ -220,6 +236,18 @@ node plugins/qa-live/scripts/build-report.mjs findings.json report.html --previo
 
 The input schema is documented in
 [`findings-schema.md`](plugins/qa-live/skills/qa-live/references/findings-schema.md).
+
+## Working on the plugin
+
+```bash
+npm test     # 40 tests, Node's built-in runner, no dependencies
+npm run check
+```
+
+The report generator and the spec generator export their pure functions so the tests can
+reach them. Several of those tests exist because the bug happened: argument parsing that
+ate its own input, `{{run}}` losing the timestamp at the start or end of a value, URL
+globs compiling to invalid regexes. Add one when you fix something.
 
 ## Adding a recipe
 

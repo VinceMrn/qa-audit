@@ -2,11 +2,14 @@
 /**
  * Build a self-contained HTML QA report from a findings JSON file.
  *
- *   node build-report.mjs <findings.json> <output.html> [--previous <file|auto>]
+ *   node build-report.mjs <findings.json> <output.html> [--previous <file|auto>] [--fail-on-budget]
  *
  * With --previous, the report also shows what changed since that run: which
  * findings are new, which are still open, and which have been fixed. Pass "auto"
  * to pick the most recent other .json in the same directory as the input.
+ *
+ * With --fail-on-budget, the process exits 1 when any declared budget is exceeded,
+ * which is what makes this usable as a CI gate. The report is still written.
  *
  * No dependencies, no image processing, no platform-specific binaries — screenshots
  * are captured as JPEG during the run and embedded as-is. Runs the same on macOS,
@@ -16,6 +19,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { extname, resolve, dirname, join, basename } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const LEVELS = {
   bug: ['Bug', 'bug'],
@@ -25,7 +29,7 @@ const LEVELS = {
 
 const MIME = { '.jpg': 'jpeg', '.jpeg': 'jpeg', '.png': 'png', '.webp': 'webp' };
 
-const esc = (s) =>
+export const esc = (s) =>
   String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function dataURI(file) {
@@ -36,7 +40,7 @@ function dataURI(file) {
 }
 
 /** Stable identity for matching a finding across runs: explicit id, else its title. */
-const keyOf = (f) =>
+export const keyOf = (f) =>
   String(f.id || f.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
 
 /** Most recent other .json beside the input — used by `--previous auto`. */
@@ -51,7 +55,7 @@ function findPrevious(inputPath) {
 }
 
 /** new / still-open / fixed, comparing this run's findings against a previous run. */
-function diffRuns(current, previous) {
+export function diffRuns(current, previous) {
   const prev = new Map((previous.findings ?? []).map((f) => [keyOf(f), f]));
   const cur = new Map((current.findings ?? []).map((f) => [keyOf(f), f]));
   return {
@@ -62,7 +66,7 @@ function diffRuns(current, previous) {
   };
 }
 
-function buildHTML(d, delta = null) {
+export function buildHTML(d, delta = null) {
   const meta = Object.entries(d.meta ?? {})
     .map(([k, v]) => `<div><b>${esc(k)}</b> ${esc(v)}</div>`)
     .join('');
@@ -289,14 +293,21 @@ ${shotsBlock}
   return { html, embedded };
 }
 
+/** Split argv into positionals and flags. Exported so the parsing is testable. */
+export function parseArgs(argv) {
+  const failOnBudget = argv.includes('--fail-on-budget');
+  const rest = argv.filter((a) => a !== '--fail-on-budget');
+  const pi = rest.indexOf('--previous');
+  const previous = pi !== -1 ? rest[pi + 1] ?? null : null;
+  const positional = rest.filter((_, i) => i !== pi && (pi === -1 || i !== pi + 1));
+  return { input: positional[0] ?? null, output: positional[1] ?? null, previous, failOnBudget };
+}
+
 function main() {
-  const args = process.argv.slice(2);
-  const pi = args.indexOf('--previous');
-  const previousArg = pi !== -1 ? args[pi + 1] : null;
-  const [input, output] = args.filter((_, i) => i !== pi && (pi === -1 || i !== pi + 1));
+  const { input, output, previous: previousArg, failOnBudget } = parseArgs(process.argv.slice(2));
 
   if (!input || !output) {
-    console.error('usage: build-report.mjs <findings.json> <output.html> [--previous <file|auto>]');
+    console.error('usage: build-report.mjs <findings.json> <output.html> [--previous <file|auto>] [--fail-on-budget]');
     process.exit(1);
   }
 
@@ -344,6 +355,12 @@ function main() {
   if (overBudget.length) console.log(`    ${overBudget.length} budget(s) exceeded: ${overBudget.map((b) => b.label).join(', ')}`);
   for (const s of missing) console.warn(`  ! screenshot not found, skipped: ${s.file}`);
   if (mb > 8) console.warn('  ! report is large — consider fewer or smaller screenshots');
+
+  if (failOnBudget && overBudget.length) {
+    console.error(`FAIL  ${overBudget.length} budget(s) exceeded`);
+    process.exit(1);
+  }
 }
 
-main();
+// Only run when invoked directly, so the module can be imported by tests.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

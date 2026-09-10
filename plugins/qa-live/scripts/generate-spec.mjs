@@ -12,9 +12,10 @@
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 /** Single-quoted JS string literal. */
-const q = (s) => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+export const q = (s) => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
 
 /** A target is a Playwright locator expression if it looks like one, else a CSS selector. */
 const loc = (target) =>
@@ -25,7 +26,7 @@ const loc = (target) =>
  * literal, and the pattern is anchored at the end unless it already ends in a
  * wildcard — otherwise "**\/signup" would also match "/signup/extra".
  */
-function globToRegex(glob) {
+export function globToRegex(glob) {
   const body = String(glob)
     .replace(/[.+^${}()|[\]\\/]/g, '\\$&')
     .replace(/\*+/g, '.*')
@@ -34,7 +35,7 @@ function globToRegex(glob) {
 }
 
 /** Interleave the literal parts of a {{run}} template with the runId variable. */
-function runTemplate(value) {
+export function runTemplate(value) {
   const parts = String(value).split('{{run}}');
   const tokens = [];
   parts.forEach((part, i) => {
@@ -45,7 +46,7 @@ function runTemplate(value) {
 }
 
 /** Substitute {{fixture}} placeholders with a reference to the fixtures object. */
-function interpolate(value) {
+export function interpolate(value) {
   if (typeof value !== 'string') return q(value);
   const parts = value.split(/(\{\{\s*[\w.]+\s*\}\})/g).filter(Boolean);
   if (parts.length === 1 && !/^\{\{/.test(parts[0])) return q(value);
@@ -85,7 +86,7 @@ const EXPECTS = {
   disabled: (v) => `await expect(${loc(v)}).toBeDisabled();`,
 };
 
-function buildSpec(plan, flow) {
+export function buildSpec(plan, flow) {
   const L = [];
   const baseURL = plan.serve?.url ?? '';
   const fixtures = { ...(plan.fixtures ?? {}), ...(flow.fixtures ?? {}) };
@@ -129,9 +130,16 @@ function buildSpec(plan, flow) {
     L.push(`    // Step ${i + 1} — ${step.name ?? 'unnamed'}`);
     L.push(`    await test.step(${q(step.name ?? `step ${i + 1}`)}, async () => {`);
 
-    for (const a of step.actions ?? []) {
-      const fn = ACTIONS[a.do];
-      L.push(fn ? `      ${fn(a)}` : `      // TODO unsupported action "${a.do}" — write this one by hand`);
+    // `code` holds the lines playwright-cli emitted while the flow actually ran.
+    // Prefer it: targeting by ref produces getByRole locators, which survive a
+    // redesign far better than the CSS selectors an `actions` list carries.
+    if (step.code?.length) {
+      for (const line of step.code) L.push(`      ${String(line).trim()}`);
+    } else {
+      for (const a of step.actions ?? []) {
+        const fn = ACTIONS[a.do];
+        L.push(fn ? `      ${fn(a)}` : `      // TODO unsupported action "${a.do}" — write this one by hand`);
+      }
     }
 
     const exp = step.expect ?? {};
@@ -185,4 +193,5 @@ function main() {
   console.log(`    run it with:  npx playwright test ${output}`);
 }
 
-main();
+// Only run when invoked directly, so the module can be imported by tests.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
