@@ -8,7 +8,28 @@ description: Run a live QA audit of a web project — drives a real browser, mea
 Act as a QA engineer testing a project in a real browser. Deliverable: a **self-contained
 HTML report** — measurements, graded findings, annotated screenshots, one file.
 
-Argument: a URL (`https://…`), a local port (`3000`), a project path, or nothing (current project).
+Argument: a URL (`https://…`), a local port (`3000`), a project path, a feature to check,
+or nothing (current project).
+
+## Pick the scope first
+
+Match the effort to what was actually asked. Most requests are the first kind.
+
+| The request | Mode | What you do |
+|---|---|---|
+| "check the search filter", "does the cart still work" | **Focused** | targeted recon, run that one thing, answer in the terminal. No plan proposal, no HTML report unless something breaks or the user asks. Seconds, not minutes. |
+| "test my project", "run a QA pass", "audit this" | **Full audit** | the three phases below, ending in a report. |
+| "test the checkout funnel", "walk through sign-up" | **Flow** | a `flows` entry — ordered steps with expectations and checkpoints. See phase 3. |
+
+State which mode you picked in one line before starting, so the user can redirect you
+cheaply. A focused check that uncovers something serious should say so and offer the
+full audit — not silently expand into one.
+
+The rest of this file describes the full audit. Focused and flow runs reuse the same
+probes, the same false-positive discipline and the same recipes; they just skip the
+ceremony.
+
+---
 
 Work in three phases. **Never skip phase 1** — it is what makes this work on a project
 you have never seen.
@@ -85,6 +106,19 @@ Cover what this project actually has. A few examples, not a menu to follow:
 Keep it to **4–7 chapters**. State them, then ask the user to confirm or adjust in one
 sentence. Respect an explicit "just run it" and proceed.
 
+### More than one page
+
+For an application rather than a page, list the routes worth covering in `plan.json`
+and give each chapter a `route`. Keep the list short and representative — **one of each
+*kind* of page beats every page of one kind**. Ten product pages tell you what one does.
+
+Propose the route list and let the user prune it. Discovering routes by following every
+link makes the scope explode; enumerate from the router, the file tree, or the nav, then
+confirm.
+
+Some checks are per-route (console, weight, images, contrast, headings) and some are
+global (nav consistency, dead links across the site). Say which is which in the plan.
+
 **Save the accepted plan** to `.qa-live/plan.json` in the project. On later runs, load it
 and re-run the same chapters instead of redoing recon — that is what makes two reports
 comparable over time. Mention when you are reusing a saved plan, and re-run recon if the
@@ -118,9 +152,11 @@ Drop `--browser=chrome` if Chrome is not installed; chromium is the default.
 Add `--headed` only if the user wants to watch.
 
 Artifacts go under `.qa-live/` in the project — `screenshots/`, `reports/`, `runs/`,
-plus `plan.json`. Create the directories first, and suggest adding `.qa-live/` to
-`.gitignore` once, if it is a git repo and not already ignored. `runs/` holds one JSON
+`state/`, plus `plan.json`. Create the directories first, and suggest adding `.qa-live/`
+to `.gitignore` once, if it is a git repo and not already ignored. `runs/` holds one JSON
 per audit and is what the next run compares against, so never overwrite an old one.
+`state/` holds flow checkpoints and **may contain session cookies — it must never be
+committed**, which is another reason to get `.gitignore` right early.
 
 **Wait for the app to be genuinely ready.** Loaders, heavy assets and async init are
 common. Probe real state (loader opacity or removal, canvas presence, element counts)
@@ -146,6 +182,7 @@ already know where the traps are.
 | `qa.webgl(sel?)` | context version, context loss, CSS size vs backing buffer |
 | `qa.outline()` | headings, landmarks, `aria-hidden` count, focusable count |
 | `qa.at(f, {k: sel})` | scrolls to fraction `f` and reads those elements — one call per sample |
+| `qa.sweep()` | the whole page summary in one call — use it per route when walking several |
 
 Call them through `--raw eval` and wrap in `JSON.stringify`:
 
@@ -186,6 +223,66 @@ which keeps the embedded report shareable. There is no image post-processing any
 
 A finding is only worth reporting if you can show the number behind it. Record before/after
 pairs around every interaction — that pair *is* the evidence.
+
+### Walking several routes
+
+Navigate within the same browser session — never reopen it per page. The probes reinstall
+themselves on navigation, so `qa.sweep()` works immediately after every `goto`. One call
+per route instead of four keeps a ten-page walk cheap.
+
+Collect the sweeps, then report per-route differences rather than repeating what is true
+everywhere. "Every page is missing a `<h1>` except /about" is useful; ten identical
+paragraphs are not.
+
+### Running a flow
+
+A flow is an ordered sequence where each step depends on the last — a checkout, a
+sign-up, a multi-step form. Four rules make them work.
+
+**Read `safety` before touching anything.** Apply every `mock` pattern with
+`playwright-cli route "<pattern>" --status=200 --body='{}'` before the first step, and
+never submit anything listed in `neverSubmit`. If a flow would send real mail, charge a
+card or write to production and no mock covers it, **stop and ask**. The report must say
+which submissions were mocked — otherwise it implies an end-to-end pass that never happened.
+
+**Use the fixtures.** Take values from `plan.fixtures` rather than inventing them.
+`{{run}}` in a fixture is replaced with a per-run timestamp so a re-run does not collide
+with the record the last one created.
+
+**Save state at checkpoints.** After a step with a `checkpoint`, run
+`playwright-cli state-save .qa-live/state/<name>.json`.
+
+Be precise about what this buys, because it is easy to over-promise: `state-save`
+captures **cookies and storage, nothing else**. So it genuinely skips work when progress
+lives there — an authenticated session above all, or a wizard that saves its draft to
+`localStorage`. It does **not** resume a wizard whose step state lives only in the DOM:
+loading the state gives you a logged-in browser back at step one.
+
+Check before relying on it. If `document.cookie` is empty and both storages are empty at
+the checkpoint, the file will be `{"cookies":[],"origins":[]}` and resuming is an
+illusion — say so and replay the steps instead. Even then the checkpoint is worth taking
+when the flow starts with a login: skipping authentication on every iteration is usually
+where the real time goes.
+
+**Stop at the first failure and localise it.** When a step's expectation fails, the flow
+ends there. Report *which* step broke, what was expected, what was found, and capture a
+screenshot of that exact state. "Blocked at step 3 of 4: expected `#step-profile` visible,
+still on `/signup`" is actionable. "The sign-up is broken" is not. Steps after the failure
+are untested, not passing — say so.
+
+### Handing the flow to CI
+
+When a flow matters enough to run on every commit, a report is the wrong deliverable.
+Generate a real Playwright test instead:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/generate-spec.mjs" .qa-live/plan.json <flowId> tests/<flowId>.spec.ts
+```
+
+It emits an idiomatic spec — `test.step()` per step, the mocks in a `beforeEach`, fixtures
+at the top — and leaves a `// TODO` wherever an action has no mapping or a step has no
+expectation. Offer this whenever a flow passes twice in a row: this plugin explores and
+documents, Playwright runs things repeatedly, and the generated spec is the handover.
 
 ---
 

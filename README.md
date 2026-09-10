@@ -38,17 +38,18 @@ platform-specific binaries, so macOS, Linux and Windows behave identically.
 
 ## Use
 
-Just ask, in whatever language you work in:
+Just ask, in whatever language you work in. The effort matches the request:
 
 ```
-Test my project
-Run a QA pass on http://localhost:3000
-Audit https://example.com
+Does the search filter still work?     → focused check, answer in seconds
+Test my project                        → full audit, ends in a report
+Walk through the sign-up funnel        → flow: ordered steps with expectations
 ```
 
-Claude will look at your project, **propose a test plan, and wait for your go-ahead**
-before touching anything. Adjust it in one sentence — "skip checkout, test the search
-filters instead" — or tell it to just run.
+For a full audit Claude will look at your project, **propose a test plan, and wait for
+your go-ahead** before touching anything. Adjust it in one sentence — "skip checkout,
+test the search filters instead" — or tell it to just run. A focused check skips the
+ceremony entirely: no plan proposal, no report unless something breaks.
 
 ## How it works
 
@@ -87,6 +88,7 @@ come from one short call instead of a wall of improvised JavaScript:
 | `qa.webgl(sel?)` | context version, context loss, CSS size vs backing buffer |
 | `qa.outline()` | headings, landmarks, focusable count |
 | `qa.at(f, {…})` | scroll to a fraction of the page and read elements there |
+| `qa.sweep()` | the whole page summary in one call — for walking several routes |
 
 `qa.contrast` is the one worth calling out: it **refuses to answer** when the backdrop is
 a gradient, an image, a canvas, or a positioned layer painting behind the text — and when
@@ -107,6 +109,44 @@ around not doing that:
 - **Every finding carries its measurement.** `expected 44.10, got 49.00` — not "the total
   looks wrong".
 - **What works is listed as precisely as what doesn't**, so you know what not to break.
+
+## Testing an application, not just a page
+
+**Several pages.** List the routes worth covering in `plan.json` and give each chapter a
+`route`. The browser session is reused across pages and the probes reinstall themselves
+on every navigation, so a ten-page sweep is one `qa.sweep()` call per route rather than a
+fresh boot each time. One page of each *kind* beats every page of one kind.
+
+**Multi-step flows.** A checkout or a sign-up funnel is a `flows` entry: ordered steps,
+each with actions and an expectation. Three things make them usable on a real app:
+
+- **Failures are localised.** The flow stops at the broken step and reports *which* one,
+  what was expected and what was found. "Blocked at step 3 of 4" beats "the form is broken",
+  and steps after it are reported as untested rather than passing.
+- **Side effects are mocked by default.** `safety.mock` intercepts the endpoints that
+  would send mail or charge a card; `safety.neverSubmit` lists what must never be
+  submitted at all. The report states which submissions were mocked.
+- **Test data comes from `fixtures`.** `{{run}}` in a value becomes a per-run timestamp,
+  so re-running a flow that creates a record does not collide with the last one.
+
+Checkpoints (`state-save`) capture cookies and storage. That genuinely skips the login on
+every iteration — but it will not resume a wizard whose step state lives only in the DOM,
+so place them where state actually persists.
+
+## From a flow to a CI test
+
+When a flow matters enough to run on every commit, a report is the wrong deliverable:
+
+```bash
+node plugins/qa-live/scripts/generate-spec.mjs .qa-live/plan.json signup tests/signup.spec.ts
+```
+
+You get an idiomatic Playwright spec — `test.step()` per step, mocks in a `beforeEach`,
+fixtures at the top, URL globs turned into anchored regexes — with a `// TODO` wherever
+an action has no mapping or a step declared no expectation.
+
+This plugin explores and documents; Playwright runs things repeatedly. The generated spec
+is the handover, and it is where a flow should end up once it stops changing.
 
 ## Comparing runs
 
@@ -149,10 +189,12 @@ Everything lands in `.qa-live/` inside your project:
 ├── plan.json           the accepted test plan, reused on later runs
 ├── runs/               one JSON per audit — what the next run compares against
 ├── reports/            self-contained HTML reports
-└── screenshots/        JPEG captures embedded in the reports
+├── screenshots/        JPEG captures embedded in the reports
+└── state/              flow checkpoints — may hold session cookies
 ```
 
-Add `.qa-live/` to your `.gitignore` — Claude will offer to.
+Add `.qa-live/` to your `.gitignore` — Claude will offer to. `state/` in particular must
+never be committed.
 
 ## Reusing and tuning a plan
 
@@ -191,6 +233,9 @@ looks like, and which traps produce false positives in that domain. Pull request
 - Tested against static sites and client-rendered apps. Frameworks with their own dev
   server should work through the project's own start command, but coverage there is thinner.
 - Three recipes so far, and only `webgl` and `overlays` are validated against real projects.
+- Flow checkpoints only restore cookies and storage. DOM-only wizards have to be replayed.
+- The spec generator covers the common actions and assertions; anything else comes out as
+  a TODO for you to write.
 - Reports with a dozen full-page screenshots land under 2 MB.
 - It tests what it can reach. Anything behind credentials needs you to say how to log in.
 

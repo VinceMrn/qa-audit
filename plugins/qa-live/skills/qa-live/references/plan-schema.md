@@ -1,50 +1,80 @@
 # plan.json schema
 
 Saved to `.qa-live/plan.json` after the user accepts a test plan. Loading it on a later
-run skips recon and re-runs the same chapters, which is what makes two reports comparable.
+run skips recon and re-runs the same coverage, which is what makes two reports comparable.
+
+Everything is optional. A one-page site needs `serve` and `chapters`; an application
+grows into `routes`, `flows`, `fixtures` and `safety`.
 
 ```json
 {
   "project": "Acme Storefront",
-  "createdAt": "2026-09-10",
+  "createdAt": "2026-09-11",
+
   "serve": {
     "command": "npm run dev",
     "url": "http://localhost:3000",
     "readyCheck": "document.querySelector('#app') !== null"
   },
-  "budgets": {
-    "pageWeightMB": 5,
-    "consoleErrors": 0,
-    "contrastMin": 4.5,
-    "fcpMs": 1500,
-    "brokenMedia": 0
-  },
+
+  "budgets": { "pageWeightMB": 5, "consoleErrors": 0, "contrastMin": 4.5, "fcpMs": 1500 },
+
   "viewports": [
     { "label": "desktop", "width": 1440, "height": 900 },
     { "label": "mobile",  "width": 390,  "height": 844 }
   ],
+
+  "routes": [
+    { "path": "/",            "label": "Home" },
+    { "path": "/products",    "label": "Catalogue" },
+    { "path": "/products/42", "label": "Product detail" },
+    { "path": "/account",     "label": "Account", "requires": "signed-in" }
+  ],
+
+  "fixtures": {
+    "email": "qa+{{run}}@example.test",
+    "password": "Test1234!",
+    "card": "4242424242424242"
+  },
+
+  "safety": {
+    "mock": ["**/api/checkout", "**/api/signup"],
+    "neverSubmit": ["#contact-form"],
+    "note": "Staging DB, safe to create records. Payment must always be mocked."
+  },
+
   "chapters": [
     {
-      "title": "Home — console & network",
-      "detail": "Load the page, audit console and failed requests.",
-      "steps": [
-        "console + requests audit",
-        "screenshot"
-      ]
-    },
+      "title": "Catalogue — filters",
+      "route": "/products",
+      "detail": "Filter by category and price, measure the result count before and after.",
+      "steps": ["apply the category filter", "compare visible card count", "clear and confirm reset"]
+    }
+  ],
+
+  "flows": [
     {
-      "title": "Checkout funnel",
-      "detail": "Add to cart through to payment step.",
+      "id": "signup",
+      "title": "Sign-up funnel",
+      "safety": { "mock": ["**/api/signup"] },
       "steps": [
-        "click .add-to-cart, measure cart count before/after",
-        "apply discount code, compare subtotal and total",
-        "screenshot at each step"
+        {
+          "name": "Account details",
+          "actions": [
+            { "do": "click",  "target": "getByRole('link', { name: 'Sign up' })" },
+            { "do": "fill",   "target": "#email",    "value": "{{email}}" },
+            { "do": "fill",   "target": "#password", "value": "{{password}}" },
+            { "do": "click",  "target": "button[type=submit]" }
+          ],
+          "expect": { "visible": "#step-profile", "url": "**/signup/profile" },
+          "checkpoint": "after-account"
+        }
       ]
     }
   ],
+
   "knownIntentional": [
-    "The contact section is hidden until body.show-footer is set — progressive reveal, not a bug.",
-    "GPX links have no download attribute on purpose; the server sets the right content-type."
+    "The contact section is hidden until body.show-footer is set — progressive reveal, not a bug."
   ]
 }
 ```
@@ -54,10 +84,6 @@ run skips recon and re-runs the same chapters, which is what makes two reports c
 **`serve`** — how to start and reach the app. `readyCheck` is a JS expression evaluated
 in the page; poll it instead of sleeping. Omit `command` when testing a live URL.
 
-**`chapters.steps`** — intent, in prose, not literal shell commands. The point is to
-re-run the same *coverage*, while still adapting to a DOM that has changed since the plan
-was written.
-
 **`budgets`** — the project's own limits, which replace the auditor's judgement about
 what counts as too heavy or too slow. Free-form: declare only what matters here. A 3D
 experience might legitimately set `pageWeightMB: 45` where a landing page sets `2`.
@@ -65,9 +91,73 @@ Each declared budget is measured and rendered as a pass/fail row in the report, 
 also turns it into a regression guard — a jump from 4 MB to 6 MB gets flagged even though
 6 MB is not obviously wrong on its own.
 
+**`routes`** — the pages worth sweeping. Keep the list short and representative: one of
+each *kind* of page beats every page of one kind. `requires` names a precondition
+(usually a saved state from a flow checkpoint) so the route is skipped, not failed, when
+it is unavailable.
+
+**`chapters.route`** — which route the chapter runs on. Omit it for a single-page project.
+
+**`chapters.steps`** — intent, in prose, not literal shell commands. The point is to
+re-run the same *coverage* while adapting to a DOM that has changed since the plan was
+written. Flows are the opposite: literal and replayable.
+
 **`knownIntentional`** — the highest-value field over time. Every deliberate behaviour
 that once looked like a bug goes here, so the same false positive is never investigated
 twice. Append to it whenever a run rules something out.
+
+## Fixtures
+
+Named test data, referenced as `{{name}}` inside flow action values. Without them the
+auditor invents values that may collide with existing records or fail validation.
+
+`{{run}}` inside a fixture value is replaced with a per-run timestamp, so re-running a
+flow that creates something does not collide with what the last run created. It works in
+any position: `qa+{{run}}@x.test`, `{{run}}-bot`, `order-{{run}}`.
+
+Never put real credentials here — this file lives in the repo. Point at a staging account.
+
+## Safety
+
+**`mock`** — URL patterns whose responses are faked, so the client side can be exercised
+without the side effect. Applied by default to every flow that declares them; the report
+must state which submissions were mocked, otherwise it implies a real end-to-end pass.
+
+**`neverSubmit`** — selectors the auditor must not submit under any circumstances, even
+when asked to test them. For anything that sends real mail, charges a card, or writes to
+production.
+
+## Flows
+
+A flow is an ordered, literal sequence — the answer to "test my four-step checkout". It
+differs from a chapter in three ways: steps run in order and later steps depend on
+earlier ones, each step carries an expectation, and the whole thing is replayable.
+
+**`steps[].actions`** — `do` is one of `goto`, `click`, `dblclick`, `fill`, `type`,
+`press`, `select`, `check`, `uncheck`, `hover`, `upload`, `scroll`, `wait`. `target` is a
+CSS selector or a Playwright locator expression (`getByRole('button', { name: 'Next' })`).
+`value` supports `{{fixture}}` substitution.
+
+**`steps[].expect`** — what must be true once the step's actions have run. Supported:
+`visible`, `hidden`, `url` (globs allowed), `title`, `text` (`{target, value}`),
+`count` (`{target, value}`), `focused`, `enabled`, `disabled`. **A step without an
+expectation proves nothing** — the spec generator emits a TODO for it.
+
+**`steps[].checkpoint`** — saves browser state to `.qa-live/state/<name>.json` after the
+step succeeds.
+
+What it captures is **cookies and storage, and nothing else**. That makes it a real
+speed-up when the progress lives there: an authenticated session, or a wizard that saves
+its draft to `localStorage`. It does *not* restore a wizard whose step state lives only
+in the DOM — loading it gives you a logged-in browser sitting back at step one. On a
+DOM-only flow the checkpoint file comes back as `{"cookies":[],"origins":[]}`, which is
+the tell.
+
+So place checkpoints where state actually persists — right after login, above all. Skipping
+authentication on every iteration is where the time really goes on a long flow.
+
+When a step fails, the flow stops there. Report *which* step broke and the state at that
+point — "blocked at step 3 of 4" is actionable, "the form is broken" is not.
 
 ## Reusing a plan
 

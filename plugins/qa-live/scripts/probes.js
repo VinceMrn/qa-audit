@@ -292,6 +292,32 @@ async page => {
         };
       },
 
+      /**
+       * Everything worth knowing about the current page, in one call.
+       * Use it per route when sweeping several pages — one round trip instead
+       * of four, which matters once you are walking ten of them.
+       */
+      sweep() {
+        const p = qa.perf();
+        const o = qa.outline();
+        const m = qa.media();
+        const l = qa.links();
+        return {
+          url: location.pathname + location.search,
+          title: document.title,
+          lang: document.documentElement.lang || null,
+          weightMB: p.totalMB, requests: p.requests, fcp: p.fcp,
+          headings: o.headings.length, h1Count: o.h1Count,
+          landmarks: o.landmarks, focusable: o.focusable,
+          images: m.images, brokenImages: m.broken, missingAlt: m.missingAlt,
+          links: l.total, placeholders: l.placeholders.length,
+          brokenAnchors: l.anchors.filter((a) => !a.resolves).map((a) => a.anchor),
+          overflowsX: qa.overflow().overflows,
+          canvases: document.querySelectorAll('canvas').length,
+          forms: document.querySelectorAll('form').length,
+        };
+      },
+
       /** Scroll to a fraction of the page and report what changed there. */
       at(fraction, readers = {}) {
         scrollTo(0, Math.round((document.documentElement.scrollHeight - innerHeight) * fraction));
