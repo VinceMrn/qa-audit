@@ -1,13 +1,13 @@
 {
-  "name": "qa-live",
+  "name": "qa-audit",
   "displayName": "QA Live",
   "version": "0.6.0",
   "description": "Live QA audits for web projects. Drives a real browser, adapts its test plan to the project, measures with built-in probes and produces a self-contained HTML report — with the discipline to avoid false positives.",
   "author": {
     "name": "Vincent Morin"
   },
-  "repository": "https://github.com/OWNER/REPO",
-  "homepage": "https://github.com/OWNER/REPO",
+  "repository": "https://github.com/VinceMrn/qa-audit",
+  "homepage": "https://github.com/VinceMrn/qa-audit",
   "license": "MIT",
   "keywords": [
     "qa",

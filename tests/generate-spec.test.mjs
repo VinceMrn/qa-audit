@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { globToRegex, runTemplate, interpolate, buildSpec, q }
-  from '../plugins/qa-live/scripts/generate-spec.mjs';
+  from '../plugins/qa-audit/scripts/generate-spec.mjs';
 
-const SCRIPT = new URL('../plugins/qa-live/scripts/generate-spec.mjs', import.meta.url).pathname;
+const SCRIPT = new URL('../plugins/qa-audit/scripts/generate-spec.mjs', import.meta.url).pathname;
 
 describe('q', () => {
   test('escapes quotes, backslashes and newlines', () => {

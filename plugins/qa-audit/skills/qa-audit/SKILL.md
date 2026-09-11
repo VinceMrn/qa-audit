@@ -1,5 +1,5 @@
 ---
-name: qa-live
+name: qa-audit
 description: Run a live QA audit of a web project — drives a real browser, measures what it finds, and produces a self-contained HTML report with annotated screenshots. Use when the user asks to test a site or app, run a QA pass, audit accessibility or performance in the browser, or check for regressions.
 ---
 
@@ -71,9 +71,9 @@ from *somebody else's server*, then audit the wrong application without noticing
 the output and take the URL from it:
 
 ```bash
-npm run dev > .qa-live/dev.log 2>&1 &
+npm run dev > .qa-audit/dev.log 2>&1 &
 # then poll the log for the address it actually bound to
-grep -oE 'https?://localhost:[0-9]+' .qa-live/dev.log | head -1
+grep -oE 'https?://localhost:[0-9]+' .qa-audit/dev.log | head -1
 ```
 
 **Poll for readiness, do not sleep once.** Vite is up in ~350 ms, but `next dev` compiles
@@ -158,7 +158,7 @@ confirm.
 Some checks are per-route (console, weight, images, contrast, headings) and some are
 global (nav consistency, dead links across the site). Say which is which in the plan.
 
-**Save the accepted plan** to `.qa-live/plan.json` in the project. On later runs, load it
+**Save the accepted plan** to `.qa-audit/plan.json` in the project. On later runs, load it
 and re-run the same chapters instead of redoing recon — that is what makes two reports
 comparable over time. Mention when you are reusing a saved plan, and re-run recon if the
 project has clearly changed.
@@ -219,8 +219,8 @@ not a defect. Caching and compression findings, on the other hand, are real eith
 Drop `--browser=chrome` if Chrome is not installed; chromium is the default.
 Add `--headed` only if the user wants to watch.
 
-Artifacts go under `.qa-live/` in the project — `screenshots/`, `reports/`, `runs/`,
-`state/`, plus `plan.json`. Create the directories first, and suggest adding `.qa-live/`
+Artifacts go under `.qa-audit/` in the project — `screenshots/`, `reports/`, `runs/`,
+`state/`, plus `plan.json`. Create the directories first, and suggest adding `.qa-audit/`
 to `.gitignore` once, if it is a git repo and not already ignored. `runs/` holds one JSON
 per audit and is what the next run compares against, so never overwrite an old one.
 `state/` holds flow checkpoints and **may contain session cookies — it must never be
@@ -293,7 +293,7 @@ Use `highlight` only when a screenshot needs to point at something:
 
 ```bash
 playwright-cli highlight <sel> --style="outline: 3px solid #e85d26"
-playwright-cli screenshot --filename=.qa-live/screenshots/<n>-<name>.jpg
+playwright-cli screenshot --filename=.qa-audit/screenshots/<n>-<name>.jpg
 playwright-cli highlight --hide
 ```
 
@@ -334,7 +334,7 @@ which submissions were mocked — otherwise it implies an end-to-end pass that n
 with the record the last one created.
 
 **Save state at checkpoints.** After a step with a `checkpoint`, run
-`playwright-cli state-save .qa-live/state/<name>.json`.
+`playwright-cli state-save .qa-audit/state/<name>.json`.
 
 Be precise about what this buys, because it is easy to over-promise: `state-save`
 captures **cookies and storage, nothing else**. So it genuinely skips work when progress
@@ -360,7 +360,7 @@ When a flow matters enough to run on every commit, a report is the wrong deliver
 Generate a real Playwright test instead:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/generate-spec.mjs" .qa-live/plan.json <flowId> tests/<flowId>.spec.ts
+node "${CLAUDE_PLUGIN_ROOT}/scripts/generate-spec.mjs" .qa-audit/plan.json <flowId> tests/<flowId>.spec.ts
 ```
 
 It emits an idiomatic spec — `test.step()` per step, the mocks in a `beforeEach`, fixtures
@@ -419,8 +419,8 @@ Write the findings to the run history, then generate the HTML:
 ```bash
 # keep every run, named so they sort chronologically
 node "${CLAUDE_PLUGIN_ROOT}/scripts/build-report.mjs" \
-  .qa-live/runs/<YYYY-MM-DD-HHMM>.json \
-  .qa-live/reports/<YYYY-MM-DD-HHMM>.html \
+  .qa-audit/runs/<YYYY-MM-DD-HHMM>.json \
+  .qa-audit/reports/<YYYY-MM-DD-HHMM>.html \
   --previous auto
 ```
 
@@ -428,7 +428,7 @@ Add `--fail-on-budget` to exit non-zero when a declared budget is exceeded — t
 makes the generator usable as a CI gate. The report is still written, so the pipeline can
 publish it alongside the failure.
 
-`--previous auto` picks the most recent other run in `.qa-live/runs/` and adds a
+`--previous auto` picks the most recent other run in `.qa-audit/runs/` and adds a
 **Since last run** section: how many findings are new, still open, and fixed. Pass an
 explicit path to compare against a specific run, or omit the flag on a first run — a
 missing previous run is a warning, never an error.
@@ -455,7 +455,7 @@ playwright-cli close
 rm -rf .playwright-cli
 ```
 
-Deliverables under `.qa-live/` stay.
+Deliverables under `.qa-audit/` stay.
 
 ---
 

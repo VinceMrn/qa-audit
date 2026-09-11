@@ -1,25 +1,25 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "qa-live",
+  "name": "qa-audit",
   "description": "Live QA auditing for web projects with Claude Code and playwright-cli.",
   "owner": {
     "name": "Vincent Morin",
-    "url": "https://github.com/OWNER"
+    "url": "https://github.com/VinceMrn"
   },
   "plugins": [
     {
-      "name": "qa-live",
+      "name": "qa-audit",
       "displayName": "QA Live",
       "description": "Live QA audits for web projects. Drives a real browser, adapts its test plan to the project, measures with built-in probes and produces a self-contained HTML report — with the discipline to avoid false positives.",
       "version": "0.6.0",
-      "source": "./plugins/qa-live",
+      "source": "./plugins/qa-audit",
       "category": "testing",
       "license": "MIT",
       "author": {
         "name": "Vincent Morin"
       },
-      "homepage": "https://github.com/OWNER/REPO",
-      "repository": "https://github.com/OWNER/REPO",
+      "homepage": "https://github.com/VinceMrn/qa-audit",
+      "repository": "https://github.com/VinceMrn/qa-audit",
       "keywords": [
         "qa",
         "testing",

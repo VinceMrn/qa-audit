@@ -35,8 +35,8 @@ platform-specific binaries, so macOS, Linux and Windows behave identically.
 ## Install
 
 ```
-/plugin marketplace add OWNER/REPO
-/plugin install qa-live@qa-live
+/plugin marketplace add VinceMrn/qa-audit
+/plugin install qa-audit@qa-audit
 ```
 
 ## Use
@@ -61,7 +61,7 @@ project actually starts it, then looks at the live DOM.
 
 **2. Plan.** Proposes 4–7 chapters drawn from what the project *has* — auth, a checkout
 funnel, a WebGL canvas, filters, dialogs — not from a fixed checklist. You confirm.
-The accepted plan is saved to `.qa-live/plan.json`, so the next run replays the same
+The accepted plan is saved to `.qa-audit/plan.json`, so the next run replays the same
 coverage and the two reports are comparable.
 
 **3. Run.** Executes the plan, measuring before/after state around every interaction with
@@ -153,7 +153,7 @@ so place them where state actually persists.
 When a flow matters enough to run on every commit, a report is the wrong deliverable:
 
 ```bash
-node plugins/qa-live/scripts/generate-spec.mjs .qa-live/plan.json signup tests/signup.spec.ts
+node plugins/qa-audit/scripts/generate-spec.mjs .qa-audit/plan.json signup tests/signup.spec.ts
 ```
 
 You get an idiomatic Playwright spec — `test.step()` per step, mocks in a `beforeEach`,
@@ -165,7 +165,7 @@ is the handover, and it is where a flow should end up once it stops changing.
 
 ## Comparing runs
 
-Every audit is kept as JSON under `.qa-live/runs/`. The next one compares against it and
+Every audit is kept as JSON under `.qa-audit/runs/`. The next one compares against it and
 the report opens with what changed:
 
 ```
@@ -179,7 +179,7 @@ title does not fake a fix.
 
 ## Budgets
 
-Declare your own limits in `.qa-live/plan.json` and the report judges against them
+Declare your own limits in `.qa-audit/plan.json` and the report judges against them
 instead of against someone else's idea of "too heavy":
 
 ```json
@@ -201,10 +201,10 @@ can publish it next to the failure.
 
 ## Artifacts
 
-Everything lands in `.qa-live/` inside your project:
+Everything lands in `.qa-audit/` inside your project:
 
 ```
-.qa-live/
+.qa-audit/
 ├── plan.json           the accepted test plan, reused on later runs
 ├── runs/               one JSON per audit — what the next run compares against
 ├── reports/            self-contained HTML reports
@@ -212,7 +212,7 @@ Everything lands in `.qa-live/` inside your project:
 └── state/              flow checkpoints — may hold session cookies
 ```
 
-Add `.qa-live/` to your `.gitignore` — Claude will offer to. `state/` in particular must
+Add `.qa-audit/` to your `.gitignore` — Claude will offer to. `state/` in particular must
 never be committed.
 
 ## Reusing and tuning a plan
@@ -233,12 +233,12 @@ positive is never investigated twice.
 The generator is a standalone script, useful in CI or from your own tooling:
 
 ```bash
-node plugins/qa-live/scripts/build-report.mjs findings.json report.html
-node plugins/qa-live/scripts/build-report.mjs findings.json report.html --previous auto
+node plugins/qa-audit/scripts/build-report.mjs findings.json report.html
+node plugins/qa-audit/scripts/build-report.mjs findings.json report.html --previous auto
 ```
 
 The input schema is documented in
-[`findings-schema.md`](plugins/qa-live/skills/qa-live/references/findings-schema.md).
+[`findings-schema.md`](plugins/qa-audit/skills/qa-audit/references/findings-schema.md).
 
 ## Working on the plugin
 
@@ -254,7 +254,7 @@ globs compiling to invalid regexes. Add one when you fix something.
 
 ## Adding a recipe
 
-Recipes live in `plugins/qa-live/skills/qa-live/recipes/`. Three ship today — `webgl`,
+Recipes live in `plugins/qa-audit/skills/qa-audit/recipes/`. Three ship today — `webgl`,
 `overlays`, `forms`. Adding one is a Markdown file plus a row in the detection table at
 the top of `SKILL.md`. Keep them short and specific: what to check, what the measurement
 looks like, and which traps produce false positives in that domain. Pull requests welcome.

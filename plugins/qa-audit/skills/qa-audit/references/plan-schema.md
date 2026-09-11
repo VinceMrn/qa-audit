@@ -1,6 +1,6 @@
 # plan.json schema
 
-Saved to `.qa-live/plan.json` after the user accepts a test plan. Loading it on a later
+Saved to `.qa-audit/plan.json` after the user accepts a test plan. Loading it on a later
 run skips recon and re-runs the same coverage, which is what makes two reports comparable.
 
 Everything is optional. A one-page site needs `serve` and `chapters`; an application
@@ -158,7 +158,7 @@ ref yields `getByRole('textbox', { name: 'Email' })` where a CSS selector yields
 `count` (`{target, value}`), `focused`, `enabled`, `disabled`. **A step without an
 expectation proves nothing** — the spec generator emits a TODO for it.
 
-**`steps[].checkpoint`** — saves browser state to `.qa-live/state/<name>.json` after the
+**`steps[].checkpoint`** — saves browser state to `.qa-audit/state/<name>.json` after the
 step succeeds.
 
 What it captures is **cookies and storage, and nothing else**. That makes it a real

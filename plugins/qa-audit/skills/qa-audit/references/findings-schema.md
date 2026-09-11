@@ -13,7 +13,7 @@ sections are left out of the report entirely.
     "Environment": "Chrome headed · macOS",
     "Viewports": "1440×900 · 390×844",
     "Stack": "Next.js 15 · Tailwind",
-    "Tool": "playwright-cli 0.1.19 · qa-live"
+    "Tool": "playwright-cli 0.1.19 · qa-audit"
   },
 
   "metrics": [
@@ -49,7 +49,7 @@ sections are left out of the report entirely.
 
   "screenshots": [
     {
-      "file": ".qa-live/screenshots/01-home.jpg",
+      "file": ".qa-audit/screenshots/01-home.jpg",
       "title": "Home 1440×900",
       "caption": "Initial load.",
       "flag": false

@@ -5,10 +5,10 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { parseArgs, keyOf, diffRuns, buildHTML, esc }
-  from '../plugins/qa-live/scripts/build-report.mjs';
+import { parseArgs, keyOf, diffRuns, buildHTML, esc, resolveAsset }
+  from '../plugins/qa-audit/scripts/build-report.mjs';
 
-const SCRIPT = new URL('../plugins/qa-live/scripts/build-report.mjs', import.meta.url).pathname;
+const SCRIPT = new URL('../plugins/qa-audit/scripts/build-report.mjs', import.meta.url).pathname;
 
 describe('parseArgs', () => {
   test('reads two positionals with no flags', () => {
@@ -140,8 +140,35 @@ describe('buildHTML', () => {
   });
 });
 
+describe('resolveAsset', () => {
+  // Regression: paths were resolved against the working directory only, so a
+  // findings file listing "01.jpg" next to itself lost every screenshot when the
+  // command ran from anywhere else.
+  const dir = mkdtempSync(join(tmpdir(), 'qa-assets-'));
+  const img = join(dir, 'shot.jpg');
+  writeFileSync(img, 'x');
+  const findings = join(dir, 'f.json');
+  writeFileSync(findings, '{}');
+
+  test('finds a path relative to the findings file', () => {
+    assert.equal(resolveAsset('shot.jpg', findings), img);
+  });
+
+  test('still finds an absolute path', () => {
+    assert.equal(resolveAsset(img, findings), img);
+  });
+
+  test('returns null when the file exists nowhere', () => {
+    assert.equal(resolveAsset('nope.jpg', findings), null);
+  });
+
+  test('returns null for a directory', () => {
+    assert.equal(resolveAsset(dir, null), null);
+  });
+});
+
 describe('cli', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'qa-live-test-'));
+  const dir = mkdtempSync(join(tmpdir(), 'qa-audit-test-'));
   const findings = join(dir, 'f.json');
   const out = join(dir, 'r.html');
 
