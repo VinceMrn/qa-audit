@@ -1,7 +1,7 @@
 {
   "name": "qa-live",
   "displayName": "QA Live",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Live QA audits for web projects. Drives a real browser, adapts its test plan to the project, measures with built-in probes and produces a self-contained HTML report — with the discipline to avoid false positives.",
   "author": {
     "name": "Vincent Morin"

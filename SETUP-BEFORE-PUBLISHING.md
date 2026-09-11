@@ -47,5 +47,6 @@ Then start a fresh Claude Code session and confirm `qa-live` shows up in the ski
 
 ## Optional
 
-- Add a real example report under `examples/` — it is the most persuasive thing on the page.
+- `examples/example-report.html` is already committed — an audit of the Vite + React
+  starter. Swap in something from your own projects if you want a meatier showcase.
 - A short screen recording of a run in the README goes further than any description.

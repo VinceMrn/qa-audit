@@ -1,0 +1,66 @@
+{
+  "project": "Vite + React starter",
+  "meta": {
+    "URL": "http://localhost:4180/ (production build)",
+    "Date": "11 September 2026",
+    "Environment": "Chrome · macOS",
+    "Stack": "Vite 8.3 · React 19",
+    "Tool": "playwright-cli 0.1.19 · qa-live 0.6.0"
+  },
+  "metrics": [
+    { "value": "3", "label": "accessibility rules<br>violated (axe-core)", "tone": "warn" },
+    { "value": "10", "label": "affected nodes" },
+    { "value": "0.09", "label": "MB built<br>3.58 MB in dev mode", "tone": "good" },
+    { "value": "0", "label": "console errors", "tone": "good" }
+  ],
+  "budgets": [
+    { "label": "Page weight (built)", "measured": "0.09 MB", "budget": "1 MB", "pass": true },
+    { "label": "First contentful paint", "measured": "56 ms", "budget": "1500 ms", "pass": true },
+    { "label": "Console errors", "measured": "0", "budget": "0", "pass": true },
+    { "label": "Minimum text contrast", "measured": "3.82:1", "budget": "4.5:1", "pass": false }
+  ],
+  "chapters": [
+    { "title": "Build & serve", "detail": "Built for production first — dev-server numbers are not comparable." },
+    { "title": "Console & network", "detail": "Console audit and failed requests on the built output." },
+    { "title": "Accessibility (axe-core)", "detail": "~90 rules against the rendered page." },
+    { "title": "Headers", "detail": "Security, caching and compression on the preview server." }
+  ],
+  "findings": [
+    {
+      "id": "no-landmarks",
+      "level": "warning",
+      "title": "No landmarks — 8 of 10 nodes sit outside any region",
+      "detail": "The page has a single <code>&lt;div id=\"root\"&gt;</code> and no <code>&lt;main&gt;</code>, <code>&lt;header&gt;</code> or <code>&lt;nav&gt;</code>. Screen-reader users navigate by landmark before they read anything, so a page without them offers no way in other than reading top to bottom. Two axe rules fire on this: <code>region</code> for the orphaned content and <code>landmark-one-main</code> for the missing main.",
+      "evidence": "axe-core 4.10.2\n  [moderate] region              8 nodes   All page content should be contained by landmarks\n  [moderate] landmark-one-main   1 node    Document should have one main landmark\n\nqa.outline()\n  headings   : h1 \"Get started\", h2 \"Documentation\", h2 \"Connect with us\"\n  landmarks  : []            ← none at all",
+      "fix": "Wrap the app body in <code>&lt;main&gt;</code>. On this template that is a one-line change in <code>App.jsx</code> and it clears both rules at once."
+    },
+    {
+      "id": "counter-contrast",
+      "level": "warning",
+      "title": "The counter button sits at 3.82:1",
+      "detail": "The default purple-on-lilac counter button falls below the 4.5:1 AA floor for body-sized text. Worth noting that the two engines disagree slightly — axe resolves the button's own light background and reports 3.82:1, while <code>qa.contrast</code> walks up to the white body and reports 4.39:1. axe is right here; on a flat background it is the more accurate of the two, which is exactly why both are run.",
+      "evidence": "axe-core     : 3.82:1  foreground #aa3bff on background #f7ebff, 16px\nqa.contrast  : 4.39:1  (resolved the body white, not the button's own background)\nAA floor     : 4.5:1   for text under 24px",
+      "fix": "Darken the label or the surface. <code>#8b1fd6</code> on the same lilac clears 4.5:1 while keeping the palette."
+    },
+    {
+      "id": "preview-headers",
+      "level": "info",
+      "title": "The preview server sets no security headers",
+      "detail": "<code>vite preview</code> serves without <code>Content-Security-Policy</code>, <code>X-Content-Type-Options</code> or <code>Referrer-Policy</code>. This is expected — it is a local preview, not a deployment target — and is listed only as a reminder that these come from your host or CDN, and are worth checking on the deployed site where they actually apply.",
+      "evidence": "headers.js\n  missing: contentSecurityPolicy, xContentTypeOptions,\n           xFrameOptions, referrerPolicy, permissionsPolicy\n  caching     : all static assets fingerprinted and cached  ✓\n  compression : no uncompressed textual responses           ✓",
+      "fix": "Nothing to change locally. Verify the headers on the deployed site, where the CDN or reverse proxy sets them."
+    }
+  ],
+  "passed": [
+    { "title": "Clean console", "detail": "No errors or warnings on the production build. The React DevTools notice that appears in dev mode is tooling, not the app." },
+    { "title": "Production build is small", "detail": "0.09 MB across 7 requests, first paint at 56 ms. The dev server reports 3.58 MB over 20 requests for the same app — which is why performance is measured on the build." },
+    { "title": "Correct heading structure", "detail": "Exactly one h1, followed by h2s, in document order." },
+    { "title": "Document language declared", "detail": "<code>&lt;html lang=\"en\"&gt;</code> is present, so screen readers pick the right pronunciation." },
+    { "title": "No broken media and full alt coverage", "detail": "5 images, none broken, every one carrying an alt attribute." },
+    { "title": "Assets fingerprinted and cached", "detail": "Every built asset is content-hashed and served cacheable; no uncompressed textual response." }
+  ],
+  "screenshots": [
+    { "file": "01-home.jpg", "title": "Production build", "caption": "The starter, served from dist/." },
+    { "file": "02-contrast.jpg", "title": "Counter button — 3.82:1", "caption": "Below the 4.5:1 AA floor.", "flag": true }
+  ]
+}

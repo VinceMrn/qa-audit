@@ -57,13 +57,52 @@ required even for a static site. In order of preference:
 3. `npx --yes serve -l <port> <dir>` — works anywhere Node is installed.
 4. `python3 -m http.server <port>` — only if Python is known to be present.
 
-Pick an unusual port (8770+). Confirm it answers before opening a browser:
+Pick an unusual port (8770+) for a server you start yourself. Remember how you started
+it — you must stop it in phase 3.
+
+### Dev servers need three precautions
+
+Verified against a Vite + React project; every one of these is a silent wrong answer,
+not a crash.
+
+**Read the URL the server prints. Never assume the port.** Vite falls back to 5174 when
+5173 is taken and says so only on stdout. Curl the port you assumed and you get `200`
+from *somebody else's server*, then audit the wrong application without noticing. Log
+the output and take the URL from it:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/
+npm run dev > .qa-live/dev.log 2>&1 &
+# then poll the log for the address it actually bound to
+grep -oE 'https?://localhost:[0-9]+' .qa-live/dev.log | head -1
 ```
 
-Remember how you started it — you must stop it in phase 3.
+**Poll for readiness, do not sleep once.** Vite is up in ~350 ms, but `next dev` compiles
+for 5–15 s on first hit. A single curl after a fixed delay opens the browser on a dead
+page. Loop until it answers, with a ceiling:
+
+```bash
+for i in $(seq 1 30); do curl -sf -o /dev/null "$URL" && break; sleep 1; done
+```
+
+**Never measure weight or speed against a dev server.** This is the one that matters.
+The same Vite + React app, measured both ways:
+
+| | dev server | production build |
+|---|---|---|
+| page weight | 3.58 MB | **0.09 MB** |
+| requests | 20 | 7 |
+| first paint | 392 ms | 56 ms |
+
+Forty times the weight, because the dev server ships unbundled modules. Reporting that
+as a finding — or worse, failing a budget on it — is a fabricated problem. So for
+anything performance-related, **build and serve the output** (`npm run build` then
+`vite preview`, `next start`, or serve `dist/`). If you cannot build, still audit
+behaviour and accessibility on the dev server, but label every performance number as
+dev-mode and exclude it from budgets. Say so in the report.
+
+**Dev tooling also adds console noise.** React logs its DevTools suggestion, Vite injects
+an HMR client, Next renders a dev overlay. Attribute those to the tooling rather than the
+project, and prefer the production build when judging the console at all.
 
 ### Load the matching recipes
 
@@ -158,11 +197,19 @@ playwright-cli run-code --filename="${CLAUDE_PLUGIN_ROOT}/scripts/axe.js"
 playwright-cli run-code --filename="${CLAUDE_PLUGIN_ROOT}/scripts/headers.js"
 ```
 
-`axe.js` covers the mechanical accessibility checks far better than any probe could.
-It does **not** cover contrast over a canvas or gradient, state that only exists after a
-scroll, or whether focus landed somewhere sensible — that is what `qa.*` and the recipes
-are for. Run both; they overlap barely. Re-run axe after opening a dialog: it only sees
-what is in the DOM at that moment.
+**Measure performance before running axe.** It loads its engine from a CDN, so anything
+run afterwards sees an extra request and an extra external host in `qa.perf()`. Take the
+perf reading first, then audit accessibility.
+
+`axe.js` covers the mechanical accessibility checks far better than any probe could, and
+it is also **more accurate than `qa.contrast` on a flat background** — it resolves the
+element's own painted background where the probe may walk past it. Measured on the same
+button: axe 3.82:1, the probe 4.39:1; axe was right.
+
+So the division is: axe owns standard contrast and the ~90 mechanical rules. `qa.contrast`
+exists for what axe cannot see — text over a canvas, a gradient, or a positioned layer —
+where it refuses to answer rather than guess. Re-run axe after opening a dialog: it only
+sees what is in the DOM at that moment.
 
 `headers.js` reloads once with a listener attached and grades what comes back. On
 **localhost it says so and softens the verdict** — production headers usually come from

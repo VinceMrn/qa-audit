@@ -8,6 +8,9 @@ It is not a test runner and it does not replace your test suite. It is the pass 
 human would do before a demo — clicking through the app, watching the console, checking
 what breaks on a phone — except it writes the report for you.
 
+**[See an example report](examples/example-report.html)** — a real audit of the official
+Vite + React starter, which turns out to have three accessibility violations of its own.
+
 ## What you get
 
 **A report** (`.html`, single file, no assets) — metrics, the coverage it ran, findings
@@ -258,8 +261,12 @@ looks like, and which traps produce false positives in that domain. Pull request
 
 ## Limits, honestly
 
-- Tested against static sites and client-rendered apps. Frameworks with their own dev
-  server should work through the project's own start command, but coverage there is thinner.
+- Tested against static sites and a Vite + React app. Other dev servers should work
+  through the project's own start command, but only Vite has actually been verified.
+- Performance is measured on the production build, never the dev server — the same Vite
+  app weighs 3.58 MB served by `vite dev` and 0.09 MB built. The skill knows this and
+  builds first; if your project cannot build, its performance numbers are excluded from
+  budgets and labelled as such.
 - Three recipes so far, and only `webgl` and `overlays` are validated against real projects.
 - Flow checkpoints only restore cookies and storage. DOM-only wizards have to be replayed.
 - The spec generator covers the common actions and assertions; anything else comes out as

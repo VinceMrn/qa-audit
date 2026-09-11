@@ -13,6 +13,8 @@ grows into `routes`, `flows`, `fixtures` and `safety`.
 
   "serve": {
     "command": "npm run dev",
+    "buildCommand": "npm run build",
+    "previewCommand": "npm run preview",
     "url": "http://localhost:3000",
     "readyCheck": "document.querySelector('#app') !== null"
   },
@@ -84,8 +86,15 @@ grows into `routes`, `flows`, `fixtures` and `safety`.
 **`serve`** — how to start and reach the app. `readyCheck` is a JS expression evaluated
 in the page; poll it instead of sleeping. Omit `command` when testing a live URL.
 
+Add `buildCommand` and a separate `previewCommand` when the project has a build step.
+Performance measured against a dev server is meaningless — the same Vite + React app
+weighs 3.58 MB in dev and 0.09 MB built — so anything weight- or speed-related has to be
+measured on the built output. Behaviour and accessibility are fine to check on the dev
+server.
+
 **`budgets`** — the project's own limits, which replace the auditor's judgement about
-what counts as too heavy or too slow. Free-form: declare only what matters here. A 3D
+what counts as too heavy or too slow. **Measure them against the production build**, never
+the dev server, or the weight budget fails by a factor of forty for no reason. Free-form: declare only what matters here. A 3D
 experience might legitimately set `pageWeightMB: 45` where a landing page sets `2`.
 Each declared budget is measured and rendered as a pass/fail row in the report, which
 also turns it into a regression guard — a jump from 4 MB to 6 MB gets flagged even though
