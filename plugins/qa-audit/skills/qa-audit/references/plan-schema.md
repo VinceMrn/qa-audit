@@ -33,9 +33,16 @@ grows into `routes`, `flows`, `fixtures` and `safety`.
     { "path": "/account",     "label": "Account", "requires": "signed-in" }
   ],
 
+  "auth": {
+    "required": true,
+    "loginUrl": "/login",
+    "usernameEnv": "QA_USER",
+    "passwordEnv": "QA_PASSWORD",
+    "note": "Staging account. Set both variables before running."
+  },
+
   "fixtures": {
     "email": "qa+{{run}}@example.test",
-    "password": "Test1234!",
     "card": "4242424242424242"
   },
 
@@ -115,6 +122,17 @@ written. Flows are the opposite: literal and replayable.
 that once looked like a bug goes here, so the same false positive is never investigated
 twice. Append to it whenever a run rules something out.
 
+## Auth
+
+Declared once during the setup interview, so later runs do not have to ask again.
+
+`usernameEnv` and `passwordEnv` hold the **names of environment variables**, never the
+values. `plan.json` is committed with the project; a password in it is a leak. Read them
+at run time and tell the user which variables to set if they are missing.
+
+With `required: true` and the variables unset, say so and audit only what is reachable
+signed out — do not pretend the run covered the application.
+
 ## Fixtures
 
 Named test data, referenced as `{{name}}` inside flow action values. Without them the
@@ -124,7 +142,9 @@ auditor invents values that may collide with existing records or fail validation
 flow that creates something does not collide with what the last run created. It works in
 any position: `qa+{{run}}@x.test`, `{{run}}-bot`, `order-{{run}}`.
 
-Never put real credentials here — this file lives in the repo. Point at a staging account.
+Never put real credentials here — this file lives in the repo. Card numbers like the one
+above are the public test values payment providers publish for exactly this purpose;
+anything genuinely secret belongs in an environment variable, declared under `auth`.
 
 ## Safety
 

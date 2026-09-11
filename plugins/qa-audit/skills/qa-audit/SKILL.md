@@ -27,7 +27,7 @@ full audit — not silently expand into one.
 
 The rest of this file describes the full audit. Focused and flow runs reuse the same
 probes, the same false-positive discipline and the same recipes; they just skip the
-ceremony.
+ceremony — including the setup interview, which belongs to the first full audit only.
 
 ---
 
@@ -123,6 +123,43 @@ up repeatedly and no recipe covers it, say so at the end: that is how the set gr
 
 ## Phase 2 — Plan
 
+### First run on this project: ask before guessing
+
+If `.qa-audit/plan.json` does not exist, **interview the user before proposing anything**.
+A project you have never seen has credentials you cannot invent, actions you must not
+trigger, and priorities only its author knows. Guessing those wastes a whole run.
+
+Ask everything in **one batch**, and pre-fill each answer from what recon found so the
+user mostly confirms rather than types:
+
+1. **How does it run?** Propose the command and URL you inferred from `README`/`package.json`.
+2. **Is there a login?** If yes: which test account, and **where the credentials live** —
+   an environment variable name, or a gitignored file. Never the values themselves.
+3. **What must never be triggered?** Forms that send real mail, payments, anything writing
+   to production, destructive actions. Offer what you spotted as a starting list.
+4. **What matters most?** The areas worth the attention — a funnel, a dashboard, a
+   specific screen. This shapes the chapters.
+
+**Do not ask about budgets.** Nobody knows their numbers before seeing a measurement.
+Offer to write them *after* the first audit, from what it measured.
+
+Write the answers to `.qa-audit/plan.json`, tell the user it is saved and editable, then
+propose the chapters. Later runs load it and skip straight past this.
+
+Keep it short. Four questions, answered in one message, then move on — an interrogation
+is worse than a few assumptions clearly stated.
+
+**Credentials never go in `plan.json`.** It lives in the repository. Store only the name
+of the variable holding the secret; read the value from the environment at run time. If
+the user pastes a real password, put the variable name in the file and tell them where to
+set it.
+
+**Say plainly when auth is missing.** Without credentials, an audit of a signed-in
+application sees the login page and nothing else. Better to say so during setup than to
+deliver a report that quietly missed 90% of the product.
+
+### Propose the chapters
+
 Propose a test plan and **show it to the user before running anything**. This is the
 step that replaces a fixed checklist: chapters come from the project, not from a template.
 
@@ -183,7 +220,7 @@ this run implies** — measured values make far better starting budgets than inv
 ### Setup
 
 ```bash
-playwright-cli open <URL> --browser=chrome
+playwright-cli open <URL> --browser=chrome --headed
 playwright-cli run-code --filename="${CLAUDE_PLUGIN_ROOT}/scripts/probes.js"
 ```
 
@@ -216,8 +253,12 @@ sees what is in the DOM at that moment.
 the CDN or reverse proxy, so a missing CSP locally is a prompt to check the deployed site,
 not a defect. Caching and compression findings, on the other hand, are real either way.
 
-Drop `--browser=chrome` if Chrome is not installed; chromium is the default.
-Add `--headed` only if the user wants to watch.
+**Headed by default.** Watching the browser work is what makes an audit trustworthy —
+the user sees what was actually clicked instead of taking the report on faith. Drop
+`--headed` only when the user asks for speed, or when there is no display (CI, SSH).
+
+Drop `--browser=chrome` if Chrome is not installed; the bundled chromium takes over.
+One of the two is enough — there is no need to have both.
 
 Artifacts go under `.qa-audit/` in the project — `screenshots/`, `reports/`, `runs/`,
 `state/`, plus `plan.json`. Create the directories first, and suggest adding `.qa-audit/`
