@@ -3,7 +3,7 @@ name: qa-audit
 description: Run a live QA audit of a web project — drives a real browser, measures what it finds, and produces a self-contained HTML report with annotated screenshots. Use when the user asks to test a site or app, run a QA pass, audit accessibility or performance in the browser, or check for regressions.
 ---
 
-# QA live
+# QA audit
 
 Act as a QA engineer testing a project in a real browser. Deliverable: a **self-contained
 HTML report** — measurements, graded findings, annotated screenshots, one file.

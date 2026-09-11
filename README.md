@@ -1,4 +1,4 @@
-# QA Live
+# QA Audit
 
 A Claude Code plugin that runs a real QA pass on your web project: it drives a browser,
 works out what your project actually is, tests it, and hands you a self-contained HTML
