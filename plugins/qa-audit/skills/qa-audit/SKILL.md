@@ -60,6 +60,15 @@ required even for a static site. In order of preference:
 Pick an unusual port (8770+) for a server you start yourself. Remember how you started
 it — you must stop it in phase 3.
 
+**Stay inside the project you were pointed at.** A front end that needs its API to do
+anything is a real constraint, not a licence: say so in the plan and let the user decide
+whether to start the backend, hand you a running URL, or accept a signed-out audit.
+Compiling a sibling project or starting a server nobody mentioned is not your call.
+
+**Never read credential stores.** User tables, `.env` files, session dumps and password
+files are not recon material. If you find plaintext passwords, that is a finding — report
+that they exist and where, never their contents, and never into the transcript.
+
 ### Dev servers need three precautions
 
 Verified against a Vite + React project; every one of these is a silent wrong answer,
@@ -143,6 +152,9 @@ user mostly confirms rather than types:
 **Do not ask about budgets.** Nobody knows their numbers before seeing a measurement.
 Offer to write them *after* the first audit, from what it measured.
 
+Ask, then **end your turn and wait**. The interview is worthless if you answer your own
+questions and carry on.
+
 Write the answers to `.qa-audit/plan.json`, tell the user it is saved and editable, then
 propose the chapters. Later runs load it and skip straight past this.
 
@@ -179,8 +191,27 @@ Cover what this project actually has. A few examples, not a menu to follow:
 | Internal links, downloads | HTTP status of every one |
 | Images and media | Lazy-load, broken assets, `alt` coverage |
 
-Keep it to **4–7 chapters**. State them, then ask the user to confirm or adjust in one
-sentence. Respect an explicit "just run it" and proceed.
+Keep it to **4–7 chapters**.
+
+### Then stop. Really stop.
+
+Present the plan and **end your turn**. Do not run a single command after presenting it.
+Not the build, not the server, not the browser — nothing.
+
+Ask with `AskUserQuestion` so the answer is one click, and wait for the user's **next
+message**. The confirmation is a separate reply that arrives after they have read the plan.
+
+**The words used to invoke the skill are never the go-ahead.** "Lance le skill",
+"run the audit", "go ahead and test this" — all of these ask you to *start the skill*,
+which means start at phase 1. They cannot approve a plan that did not exist when they
+were typed. Only a reply given *after* the plan is shown counts.
+
+A user who then says "just run it", "vas-y" or "ok" has approved it: proceed, and skip
+the question on later runs of the same plan if they ask you to.
+
+This is the one rule that makes the tool safe to point at a real project. An audit that
+decides on its own to log in, compile a backend or submit a form has stopped being an
+audit and become something the user has to supervise.
 
 ### More than one page
 
