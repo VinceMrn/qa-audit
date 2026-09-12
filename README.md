@@ -1,18 +1,18 @@
 # QA Audit
 
-A Claude Code skill that audits a web project in a **visible browser** and hands you a
-self-contained HTML report.
+Un skill Claude Code qui audite un projet web dans un **navigateur visible** et te rend un
+rapport HTML autoportant.
 
-It is not a test runner and it does not replace your test suite. It is the pass a careful
-person does before a demo — clicking through the app, watching the console, checking what
-breaks on a phone — except it writes the report for you.
+Ce n'est pas un lanceur de tests et ça ne remplace pas ta suite de tests. C'est la passe
+qu'une personne consciencieuse fait avant une démo — cliquer partout, surveiller la
+console, vérifier ce qui casse sur téléphone — sauf qu'ici le rapport s'écrit tout seul.
 
-**One file.** [`SKILL.md`](SKILL.md) is the whole thing. Read it before you install it;
-that is rather the point.
+**Un seul fichier.** [`SKILL.md`](SKILL.md), c'est tout le projet. Lis-le avant de
+l'installer : c'est un peu l'intérêt.
 
-## Install
+## Installation
 
-Skills live in `~/.claude/skills/<name>/SKILL.md`. Put the file there.
+Les skills vivent dans `~/.claude/skills/<nom>/SKILL.md`. Il suffit d'y déposer le fichier.
 
 **macOS / Linux**
 
@@ -30,57 +30,68 @@ Invoke-WebRequest https://raw.githubusercontent.com/VinceMrn/qa-audit/main/SKILL
   -OutFile "$env:USERPROFILE\.claude\skills\qa-audit\SKILL.md"
 ```
 
-Then **restart Claude Code** — skills are read at startup. `qa-audit` appears in the skill
-list.
+Puis **redémarre Claude Code** — les skills sont lus au démarrage. `qa-audit` apparaît
+alors dans la liste.
 
-To update, run the same command again. That is the entire mechanism.
+Pour mettre à jour : relance la même commande. C'est tout le mécanisme.
 
-## Requirements
+## Prérequis
 
-- [Claude Code](https://claude.com/claude-code) and **Node 18+**
-- `playwright-cli` — the skill installs it on first use if it is missing
-- A Chromium-based browser: your own Chrome, or `playwright-cli install-browser chromium`
+- [Claude Code](https://claude.com/claude-code) et **Node 18+**
+- `playwright-cli` — le skill l'installe lui-même à la première utilisation s'il manque
+- Un navigateur Chromium : ton propre Chrome, ou `playwright-cli install-browser chromium`
 
-## Use
+## Utilisation
 
-Ask, in whatever language you work in:
+Demande simplement :
 
 ```
 Audite mon projet
-Audit this app
-Check what is broken on http://localhost:3000
+Audite http://localhost:3000
+Vérifie ce qui casse sur mon site
 ```
 
-It looks at your project, **proposes a plan of 4–6 chapters, and stops there**. Nothing
-runs until you reply — not the build, not the server, not the browser. Adjust it in one
-sentence, or approve it.
+Il examine ton projet, **propose un plan de 4 à 6 chapitres, et s'arrête là**. Rien ne se
+lance tant que tu n'as pas répondu — ni le build, ni le serveur, ni le navigateur. Tu
+ajustes en une phrase, ou tu valides.
 
-Then the browser opens **in front of you** and the audit runs.
+Ensuite le navigateur s'ouvre **devant toi** et l'audit se déroule.
 
-## What it checks
+## Ce qu'il vérifie
 
-Chapters come from what your project actually has, not from a fixed list. Usually: console
-errors and failed requests, accessibility (headings, landmarks, labels, contrast,
-keyboard), a phone viewport, internal links, images — plus whatever is specific to your
-project: a form, a dialog, a canvas, a filter.
+Les chapitres viennent de ce que ton projet a réellement, pas d'une liste figée.
+Généralement : erreurs console et requêtes en échec, accessibilité (titres, landmarks,
+labels, contraste, clavier), un viewport téléphone, les liens internes, les images — plus
+ce qui est propre à ton projet : un formulaire, une modale, un canvas, un filtre.
 
-## Why it is worth trusting
+## Le rapport
 
-Most automated audits bury you in findings you then have to disprove. This one is built
-around not doing that:
+Un fichier HTML unique, sans dépendance, qui s'ouvre n'importe où et se partage en pièce
+jointe. Organisé en **trois onglets** — Constats, Ce qui fonctionne, Captures — avec les
+chiffres clés toujours visibles au-dessus.
 
-- **Nothing is reported on a single observation.** Transient failures get re-tested.
-- **Structure is explained before it is judged.** A hidden section might be a progressive
-  reveal; the skill finds the trigger before calling it a bug.
-- **The instrument is suspected before the project.** A black WebGL canvas is usually
-  `preserveDrawingBuffer`, not a broken renderer. A dead click is usually the highlight
-  overlay. Both are known and worked around.
-- **Performance is never measured on a dev server.** The same Vite app weighs 3.58 MB
-  served by `vite dev` and 0.09 MB built — reporting the first invents a problem.
-- **Every finding carries its measurement**, and what works is listed as precisely as what
-  does not.
+Chaque constat est **replié par défaut** : la liste des problèmes tient sur un écran, et tu
+déplies ce que tu veux lire. Pas de page de trois mètres à faire défiler.
 
-## Limits
+## Pourquoi lui faire confiance
 
-Verified on static sites and a Vite + React app, on macOS and Windows. Other dev servers
-should work through your own start command, but have not been checked.
+La plupart des audits automatiques t'enterrent sous des constats qu'il faut ensuite
+réfuter. Celui-ci est construit pour ne pas faire ça :
+
+- **Jamais de constat sur une seule observation.** Les échecs transitoires sont retestés.
+- **Le mécanisme est compris avant d'être jugé.** Une section masquée peut être une
+  révélation progressive ; le skill cherche le déclencheur avant de crier au bug.
+- **L'instrument est soupçonné avant le projet.** Un canvas WebGL noir, c'est presque
+  toujours `preserveDrawingBuffer`, pas un rendu cassé. Un clic sans effet, c'est le
+  surlignage. Les deux pièges sont connus et contournés.
+- **La performance n'est jamais mesurée sur un serveur de dev.** Le même projet Vite pèse
+  3,58 Mo servi par `vite dev` et 0,09 Mo une fois construit — rapporter le premier
+  invente un problème.
+- **Chaque constat porte sa mesure**, et ce qui fonctionne est listé aussi précisément que
+  ce qui ne fonctionne pas.
+
+## Limites
+
+Vérifié sur des sites statiques et une application Vite + React, sur macOS et Windows. Les
+autres serveurs de développement devraient fonctionner via la commande de ton projet, mais
+ça n'a pas été testé.
