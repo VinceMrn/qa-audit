@@ -7,32 +7,38 @@ It is not a test runner and it does not replace your test suite. It is the pass 
 person does before a demo — clicking through the app, watching the console, checking what
 breaks on a phone — except it writes the report for you.
 
-One file. No dependencies beyond `playwright-cli`, which the skill installs itself if it
-is missing.
+**One file.** [`SKILL.md`](SKILL.md) is the whole thing. Read it before you install it;
+that is rather the point.
 
 ## Install
 
-```
-/plugin marketplace add VinceMrn/qa-audit
-/plugin install qa-audit@qa-audit
-```
+Skills live in `~/.claude/skills/<name>/SKILL.md`. Put the file there.
 
-Then **restart Claude Code** — plugins load at startup.
-
-To update later, both commands are needed:
+**macOS / Linux**
 
 ```bash
-claude plugin marketplace update qa-audit   # refresh the source
-claude plugin update qa-audit               # update the installed copy
+mkdir -p ~/.claude/skills/qa-audit
+curl -fsSL https://raw.githubusercontent.com/VinceMrn/qa-audit/main/SKILL.md \
+  -o ~/.claude/skills/qa-audit/SKILL.md
 ```
 
-`claude plugin details` reports the version available in the marketplace, not the one
-running. The truth is in `~/.claude/plugins/installed_plugins.json`.
+**Windows (PowerShell)**
+
+```powershell
+mkdir "$env:USERPROFILE\.claude\skills\qa-audit" -Force
+Invoke-WebRequest https://raw.githubusercontent.com/VinceMrn/qa-audit/main/SKILL.md `
+  -OutFile "$env:USERPROFILE\.claude\skills\qa-audit\SKILL.md"
+```
+
+Then **restart Claude Code** — skills are read at startup. `qa-audit` appears in the skill
+list.
+
+To update, run the same command again. That is the entire mechanism.
 
 ## Requirements
 
 - [Claude Code](https://claude.com/claude-code) and **Node 18+**
-- `playwright-cli` — installed by the skill on first use if absent
+- `playwright-cli` — the skill installs it on first use if it is missing
 - A Chromium-based browser: your own Chrome, or `playwright-cli install-browser chromium`
 
 ## Use
@@ -46,15 +52,15 @@ Check what is broken on http://localhost:3000
 ```
 
 It looks at your project, **proposes a plan of 4–6 chapters, and stops there**. Nothing
-runs until you reply — not the build, not the server, not the browser. Adjust in one
+runs until you reply — not the build, not the server, not the browser. Adjust it in one
 sentence, or approve it.
 
 Then the browser opens **in front of you** and the audit runs.
 
 ## What it checks
 
-Chapters come from what your project actually has, not from a fixed list. Usually:
-console errors and failed requests, accessibility (headings, landmarks, labels, contrast,
+Chapters come from what your project actually has, not from a fixed list. Usually: console
+errors and failed requests, accessibility (headings, landmarks, labels, contrast,
 keyboard), a phone viewport, internal links, images — plus whatever is specific to your
 project: a form, a dialog, a canvas, a filter.
 
@@ -78,7 +84,3 @@ around not doing that:
 
 Verified on static sites and a Vite + React app, on macOS and Windows. Other dev servers
 should work through your own start command, but have not been checked.
-
-## License
-
-MIT
