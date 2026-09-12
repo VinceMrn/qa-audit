@@ -1,179 +1,184 @@
 ---
 name: qa-audit
-description: Audit a web project in a real browser — console, accessibility, responsive, links, media — and produce a self-contained HTML report. Use when the user asks to audit or test a site or app, run a QA pass, or check what is broken in the browser.
+description: Audite un projet web dans un vrai navigateur — console, accessibilité, responsive, liens, médias — et produit un rapport HTML autoportant. À utiliser quand l'utilisateur demande d'auditer ou de tester un site ou une application, de faire une recette, de vérifier ce qui casse dans le navigateur (audit a web project, run a QA pass, test this app).
 ---
 
-# QA audit
+# Audit QA
 
-Act as a QA engineer testing a project in a visible browser. Deliverable: one
-self-contained HTML report.
+Agis comme un ingénieur QA qui teste un projet dans un navigateur visible.
+Livrable : un rapport HTML autoportant, en un seul fichier.
 
 ---
 
-## 0. Tooling
+## 0. Outillage
 
-This skill drives the browser through `playwright-cli`. Check it is there, install it if
-not — one command, no project setup:
+Ce skill pilote le navigateur via `playwright-cli`. Vérifie qu'il est présent, installe-le
+sinon — une commande, aucune configuration de projet :
 
 ```bash
 playwright-cli --version || npm install -g @playwright/cli@latest
 ```
 
-If `playwright-cli open` later complains about a missing browser:
+Si `playwright-cli open` se plaint ensuite d'un navigateur manquant :
 
 ```bash
 playwright-cli install-browser chromium
 ```
 
-Chrome already on the machine works too: `--browser=chrome` uses it and downloads nothing.
+Un Chrome déjà installé sur la machine convient aussi : `--browser=chrome` l'utilise et ne
+télécharge rien.
 
 ---
 
-## 1. Recon
+## 1. Reconnaissance
 
-Look before deciding what to test.
+Regarde avant de décider quoi tester.
 
-- `README` — how it runs. The most useful file, when it exists.
-- `package.json` — scripts and framework.
-- The entry HTML and its scripts when there is neither.
+- `README` — comment ça se lance. Le fichier le plus utile, quand il existe.
+- `package.json` — scripts et framework.
+- Le HTML d'entrée et ses scripts quand il n'y a ni l'un ni l'autre.
 
-Then serve it. **`file://` is blocked**, so an HTTP server is required even for a static
-page:
+Puis sers le projet. **`file://` est bloqué**, un serveur HTTP est donc obligatoire même
+pour une page statique :
 
-1. A URL given as the argument → nothing to start.
-2. The project's own command (`npm run dev`…).
-3. `npx --yes serve -l <port> <dir>` for a static folder.
+1. Une URL donnée en argument → rien à lancer.
+2. La commande du projet lui-même (`npm run dev`…).
+3. `npx --yes serve -l <port> <dossier>` pour un dossier statique.
 
-**Read the URL the server prints, never assume the port.** Vite falls back to 5174 when
-5173 is taken and says so only on stdout — curl the assumed port and you get `200` from
-someone else's server. **Poll until it answers** rather than sleeping once: Vite is up in
-under a second, `next dev` takes 5–15 s.
+**Lis l'URL que le serveur affiche, ne suppose jamais le port.** Vite bascule sur 5174
+quand 5173 est pris et ne l'annonce que sur sa sortie standard — interroger le port
+supposé renvoie un `200` venant du serveur de quelqu'un d'autre. **Attends en boucle qu'il
+réponde** plutôt que de dormir une fois : Vite démarre en moins d'une seconde, `next dev`
+met 5 à 15 secondes.
 
-**Stay in the project you were pointed at.** A front end that needs its API is a
-constraint to state in the plan, not permission to start services nobody mentioned.
+**Reste dans le projet qu'on t'a désigné.** Un front qui a besoin de son API, c'est une
+contrainte à annoncer dans le plan, pas une permission de démarrer des services que
+personne n'a mentionnés.
 
-**Never open credential stores.** User tables, `.env` files, session dumps. That such a
-file holds plaintext passwords is a finding worth reporting; its contents must never reach
-the transcript.
-
----
-
-## 2. Plan, then stop
-
-Propose 4–6 chapters drawn from what this project actually has — not a fixed list. Those
-that usually earn their place:
-
-- console errors and failed requests
-- accessibility: headings, landmarks, labels, contrast, keyboard
-- a second viewport (390×844) and horizontal overflow
-- internal links and anchors that resolve
-- images: broken, missing `alt`, lazy loading
-- whatever is specific here — a form, a dialog, a canvas, a filter
-
-### Then end your turn
-
-Present the plan and **run nothing**. Not the build, not the server, not the browser.
-
-Ask with `AskUserQuestion` and wait for the user's **next message**.
-
-**The words that invoked the skill are never the go-ahead.** "Lance le skill",
-"run the audit", "go ahead" — those start the skill, which means start at recon. They
-cannot approve a plan that did not exist when they were typed. Only a reply given after
-the plan is shown counts.
-
-This is the rule that makes the tool safe to point at a real project.
+**N'ouvre jamais un fichier d'identifiants.** Tables d'utilisateurs, `.env`, dumps de
+session. Qu'un tel fichier contienne des mots de passe en clair est un constat à signaler ;
+son contenu ne doit jamais apparaître dans la conversation.
 
 ---
 
-## 3. Run
+## 2. Le plan, puis l'arrêt
 
-**Headed, always.** Watching the browser work is what makes an audit trustworthy — the
-user sees what was clicked instead of taking the report on faith.
+Propose 4 à 6 chapitres tirés de ce que ce projet a réellement — pas d'une liste figée.
+Ceux qui méritent souvent leur place :
+
+- erreurs console et requêtes en échec
+- accessibilité : titres, landmarks, labels, contraste, clavier
+- un second viewport (390×844) et le débordement horizontal
+- liens internes et ancres qui résolvent
+- images : cassées, `alt` manquant, lazy loading
+- ce qui est spécifique ici — un formulaire, une modale, un canvas, un filtre
+
+### Puis termine ton tour
+
+Présente le plan et **ne lance rien**. Ni le build, ni le serveur, ni le navigateur.
+
+Pose la question avec `AskUserQuestion` et attends le **message suivant** de l'utilisateur.
+
+**Les mots qui ont invoqué le skill ne valent jamais approbation.** « Lance le skill »,
+« run the audit », « vas-y teste » — ces phrases démarrent le skill, c'est-à-dire
+démarrent à la reconnaissance. Elles ne peuvent pas approuver un plan qui n'existait pas
+quand elles ont été écrites. Seule une réponse donnée **après** l'affichage du plan compte.
+
+C'est la règle qui rend l'outil sûr à pointer sur un vrai projet.
+
+---
+
+## 3. Exécution
+
+**En headed, toujours.** Voir le navigateur travailler est ce qui rend un audit digne de
+confiance : l'utilisateur voit ce qui a été cliqué au lieu de croire le rapport sur parole.
 
 ```bash
 playwright-cli open <URL> --browser=chrome --headed
 ```
 
-Drop `--browser=chrome` if Chrome is absent; the bundled chromium takes over.
+Retire `--browser=chrome` si Chrome est absent ; le chromium embarqué prend le relais.
 
-Put artifacts in `.qa-audit/` inside the project, and offer to add it to `.gitignore`.
-Capture screenshots as **`.jpg`** — roughly five times smaller than PNG, which keeps the
-embedded report shareable.
+Range les artefacts dans `.qa-audit/` à la racine du projet, et propose de l'ajouter au
+`.gitignore`. Capture les images en **`.jpg`** — environ cinq fois plus léger que le PNG,
+ce qui garde le rapport partageable.
 
-### Measure, do not describe
+### Mesure, ne décris pas
 
-A finding is worth reporting only with the number behind it. Group measurements into one
-call rather than many:
+Un constat ne vaut que s'il porte le chiffre qui le prouve. Groupe les mesures en un seul
+appel plutôt que d'en multiplier :
 
 ```bash
 playwright-cli --raw eval "(() => { /* … */ return JSON.stringify({ … }); })()"
 ```
 
-Record before/after around every interaction — that pair *is* the evidence.
+Relève un avant/après autour de chaque interaction — cette paire **est** la preuve.
 
-### Never measure performance on a dev server
+### Ne mesure jamais la performance sur un serveur de dev
 
-The same Vite + React app: **3.58 MB** served by `vite dev`, **0.09 MB** built. Reporting
-the dev figure invents a problem. Build and serve the output before any weight or speed
-claim, or label the numbers dev-mode and say they are not comparable.
+Le même projet Vite + React : **3,58 Mo** servi par `vite dev`, **0,09 Mo** une fois
+construit. Rapporter le chiffre du dev invente un problème. Construis et sers la sortie
+avant toute affirmation sur le poids ou la vitesse, ou bien étiquette les chiffres comme
+« mode dev » en précisant qu'ils ne sont pas comparables.
 
-Dev tooling adds console noise too — React's DevTools notice, Vite's HMR client, Next's
-overlay. Attribute those to the tooling, not to the project.
-
----
-
-## 4. Avoid false positives
-
-A report that cries wolf gets ignored. Four rules, each learned the hard way:
-
-**Never report on a single observation.** `curl` returns transient HTTP 000 and zero-byte
-responses. Re-test before concluding.
-
-**Find the mechanism before judging.** A `display:none` may be a progressive reveal driven
-by a class. Walk the ancestor chain, find the rule that sets it, test the trigger. What
-looks broken is often deliberate.
-
-**Suspect the instrument before the project.** Reading pixels from a WebGL canvas returns
-black without `preserveDrawingBuffer` — confirm with a screenshot instead. A click that
-does nothing is usually your own `highlight` overlay covering the target. A wheel event
-that does nothing means the cursor is outside the scrollable container.
-
-**Name what is done well, as precisely as the bugs.** A good pattern already in the
-codebase is the best fix to suggest for a bad one elsewhere.
-
-Then grade each finding: **bug** (broken), **warning** (degraded or accessibility),
-**info** (improvable).
+L'outillage de dev ajoute aussi du bruit console — la notice React DevTools, le client HMR
+de Vite, l'overlay de Next. Attribue-les à l'outillage, pas au projet.
 
 ---
 
-## 5. playwright-cli traps
+## 4. Éviter les faux positifs
 
-| Trap | Work around it |
+Un rapport qui crie au loup finit ignoré. Quatre règles, chacune apprise à ses dépens :
+
+**Jamais de constat sur une seule observation.** `curl` renvoie régulièrement des HTTP 000
+et des réponses de taille nulle, de façon transitoire. Reteste avant de conclure.
+
+**Trouve le mécanisme avant de juger.** Un `display:none` peut être une révélation
+progressive pilotée par une classe. Remonte la chaîne des ancêtres, trouve la règle qui le
+pose, teste le déclencheur. Ce qui ressemble à un bug est souvent voulu.
+
+**Soupçonne l'instrument avant le projet.** Lire les pixels d'un canvas WebGL renvoie du
+noir sans `preserveDrawingBuffer` — confirme par une capture d'écran. Un clic sans effet
+vient presque toujours de ton propre surlignage `highlight` qui recouvre la cible. Une
+molette sans effet signifie que le curseur est hors du conteneur défilable.
+
+**Nomme ce qui est bien fait, aussi précisément que les bugs.** Un bon motif déjà présent
+dans le code est la meilleure correction à proposer pour un mauvais motif ailleurs.
+
+Puis classe chaque constat : **bug** (cassé), **warning** (dégradé ou accessibilité),
+**info** (améliorable).
+
+---
+
+## 5. Pièges de playwright-cli
+
+| Piège | Contournement |
 |---|---|
-| `file://` blocked | serve over HTTP |
-| An active `highlight` makes `click` fail on small targets — the overlay covers the hit-test point | `highlight --hide` before clicking, then `mousedown` / `mouseup` |
-| The wheel only scrolls the container under the cursor | `mousemove` to that container's centre first |
-| Refs (`e130`) go stale as soon as the DOM changes | re-`snapshot` after a click, or target by CSS |
-| `eval` takes an **expression**, not statements | wrap in an IIFE: `(() => { … return x })()` |
-| The shell's working directory resets between calls | `cd` inside each command |
-| `.playwright-cli/` appears in the working directory | remove it during cleanup |
+| `file://` bloqué | servir en HTTP |
+| Un `highlight` actif fait échouer `click` sur une petite cible — l'overlay couvre le point de test | `highlight --hide` avant de cliquer, puis `mousedown` / `mouseup` |
+| La molette ne défile que le conteneur sous le curseur | `mousemove` au centre de ce conteneur d'abord |
+| Les refs (`e130`) périment dès que le DOM bouge | re-`snapshot` après un clic, ou viser en CSS |
+| `eval` prend une **expression**, pas des instructions | envelopper dans une IIFE : `(() => { … return x })()` |
+| Le répertoire courant du shell est réinitialisé entre les appels | `cd` dans chaque commande |
+| `.playwright-cli/` apparaît dans le répertoire courant | le supprimer au nettoyage |
 
-Acting on a **ref** rather than a CSS selector makes the emitted Playwright code use
-`getByRole(...)` instead of `locator('#id')` — worth it whenever the user might reuse it.
+Agir sur un **ref** plutôt que sur un sélecteur CSS fait produire du code Playwright en
+`getByRole(...)` au lieu de `locator('#id')` — utile dès que l'utilisateur pourrait le
+réutiliser.
 
 ---
 
-## 6. Report
+## 6. Rapport
 
-Write one self-contained HTML file to `.qa-audit/report.html`: no external assets,
-screenshots embedded as base64 data URIs, and a `<meta charset="utf-8">` — without it,
-accented text turns to mojibake.
+Écris un unique fichier HTML autoportant dans `.qa-audit/report.html` : aucun asset
+externe, captures embarquées en base64, et un `<meta charset="utf-8">` — sans lui, les
+accents deviennent illisibles.
 
-Structure: header with URL and date · four headline numbers · findings worst-first, each
-carrying its **measurement** · what works · screenshots, those showing a problem outlined
-in red.
+Structure : en-tête avec l'URL et la date · quatre chiffres clés · les constats du plus
+grave au moins grave, chacun portant sa **mesure** · ce qui fonctionne · les captures,
+celles qui montrent un problème encadrées en rouge.
 
-A compact style that reads well in both themes:
+Un style compact qui se lit bien en thème clair comme en sombre :
 
 ```html
 <style>
@@ -196,20 +201,21 @@ A compact style that reads well in both themes:
 </style>
 ```
 
-Open it with the platform's opener: `open` (macOS), `xdg-open` (Linux), `start` (Windows).
+Ouvre-le avec l'outil de la plateforme : `open` (macOS), `xdg-open` (Linux),
+`start` (Windows).
 
 ---
 
-## 7. Cleanup
+## 7. Nettoyage
 
-Always, even if the audit stopped partway:
+Toujours, même si l'audit s'est arrêté en cours de route :
 
 ```bash
 playwright-cli close
-# stop the server you started
+# arrêter le serveur que tu as lancé
 rm -rf .playwright-cli
 ```
 
-Close with a short summary in the user's language: the confirmed bugs with the measurement
-proving each, what works, and the path to the report. Mention the false leads you ruled
-out — that is what makes the rest credible.
+Termine par une synthèse courte dans la langue de l'utilisateur : les bugs confirmés avec
+la mesure qui prouve chacun, ce qui fonctionne, et le chemin du rapport. Mentionne les
+fausses pistes que tu as écartées — c'est ce qui donne du crédit au reste.
