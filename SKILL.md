@@ -201,28 +201,67 @@ Structure : en-tête avec l'URL et la date · quatre chiffres clés · les const
 grave au moins grave, chacun portant sa **mesure** · ce qui fonctionne · les captures,
 celles qui montrent un problème encadrées en rouge.
 
-Un style compact qui se lit bien en thème clair comme en sombre :
+Le style ci-dessous, **en thème clair uniquement** — un rapport se lit et s'imprime, il
+n'a pas à suivre le thème système. Reprends-le tel quel : des cartes blanches sur fond
+gris très clair, une ombre douce plutôt qu'une bordure, et une teinte de gravité sur le
+bord gauche de chaque constat.
 
 ```html
 <style>
-  :root { --bg:#faf8f5; --panel:#fff; --ink:#1a1714; --muted:#6b625a; --line:#e5ded5;
-          --accent:#e85d26; --red:#d92d20; --amber:#b54708; --green:#067647; }
-  @media (prefers-color-scheme:dark) { :root {
-          --bg:#141210; --panel:#1e1b18; --ink:#f2ede7; --muted:#a2978c; --line:#332e29;
-          --red:#f97066; --amber:#fdb022; --green:#47cd89; } }
-  body { background:var(--bg); color:var(--ink); margin:0 auto; max-width:1000px;
-         padding:40px 20px; font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-  h1 { font-size:38px; letter-spacing:-.02em; } h1 span { color:var(--accent); }
-  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.16em; color:var(--muted);
-       border-bottom:1px solid var(--line); padding-bottom:8px; margin-top:48px; }
-  .card { background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--line);
-          border-radius:12px; padding:20px; margin-bottom:14px; }
-  .bug { border-left-color:var(--red); } .warn { border-left-color:var(--amber); }
-  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px;
-        padding:14px; overflow-x:auto; font-size:12.5px; }
-  img { width:100%; border-radius:8px; border:1px solid var(--line); }
+  :root { --bg:#f5f6f8; --panel:#fff; --ink:#15171c; --muted:#71767f; --line:#e7e9ee;
+          --accent:#e85d26; --red:#dc2626; --amber:#d97706; --green:#059669;
+          --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.05); }
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--ink); margin:0 auto; max-width:940px;
+         padding:56px 24px 80px; font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif; }
+  .kicker { font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.18em;
+            text-transform:uppercase; color:var(--accent); margin-bottom:14px; }
+  h1 { font-size:40px; line-height:1.1; letter-spacing:-.025em; margin:0 0 14px; font-weight:680; }
+  h1 span { color:var(--accent); }
+  .meta { display:flex; flex-wrap:wrap; gap:6px 24px; font-size:13.5px; color:var(--muted);
+          padding-bottom:32px; border-bottom:1px solid var(--line); }
+  .meta b { color:var(--ink); font-weight:600; }
+  h2 { font-size:12px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--muted); margin:46px 0 18px; }
+  .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
+  .metric { background:var(--panel); border-radius:14px; padding:22px 20px; box-shadow:var(--shadow); }
+  .metric .n { font-size:34px; font-weight:680; line-height:1; letter-spacing:-.03em; }
+  .metric .l { font-size:12.5px; color:var(--muted); margin-top:8px; }
+  .metric.good .n { color:var(--green); } .metric.warn .n { color:var(--amber); }
+  .metric.bad .n { color:var(--red); }
+  .card { background:var(--panel); border-radius:14px; padding:24px; margin-bottom:14px;
+          box-shadow:var(--shadow); border-left:3px solid transparent; }
+  .bug  { border-left-color:var(--red);   background:linear-gradient(90deg,#fef4f3 0%,#fff 22%); }
+  .warn { border-left-color:var(--amber); background:linear-gradient(90deg,#fff9ef 0%,#fff 22%); }
+  .info { border-left-color:#2563eb;      background:linear-gradient(90deg,#f2f6ff 0%,#fff 22%); }
+  .card h3 { margin:0 0 10px; font-size:17.5px; letter-spacing:-.01em; }
+  .tag { display:inline-block; font:600 10px/1 ui-monospace,Menlo,monospace; letter-spacing:.1em;
+         text-transform:uppercase; padding:5px 9px; border-radius:6px; color:#fff; margin-bottom:12px; }
+  .bug .tag { background:var(--red); } .warn .tag { background:var(--amber); } .info .tag { background:#2563eb; }
+  .card p { margin:0 0 14px; }
+  pre { background:#f7f8fa; border:1px solid var(--line); border-radius:10px; padding:15px;
+        overflow-x:auto; font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace; margin:0 0 14px; }
+  .fix { background:#f7f8fa; border-radius:10px; padding:14px 16px; font-size:14px; margin:0!important; }
+  ul.ok { list-style:none; margin:0; padding:8px 24px; background:var(--panel);
+          border-radius:14px; box-shadow:var(--shadow); }
+  ul.ok li { padding:14px 0 14px 28px; border-top:1px solid var(--line); position:relative; }
+  ul.ok li:first-child { border-top:none; }
+  ul.ok li::before { content:"\2713"; position:absolute; left:0; top:14px; color:var(--green); font-weight:700; }
+  ul.ok b { display:block; font-size:14.5px; } ul.ok span { font-size:13px; color:var(--muted); }
+  figure { margin:0 0 16px; background:var(--panel); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); }
+  figure img { display:block; width:100%; }
+  figure figcaption { padding:14px 18px; font-size:13px; color:var(--muted); }
+  figure.flag { box-shadow:0 0 0 2px var(--red), var(--shadow); }
+  footer { margin-top:56px; padding-top:20px; border-top:1px solid var(--line);
+           font-size:12.5px; color:var(--muted); }
 </style>
 ```
+
+Les classes attendues : `.kicker` et `h1 span` pour le titre · `.meta` pour la ligne
+URL/date · `.metric` (+ `.good` / `.warn` / `.bad`) pour les chiffres clés · `.card`
+(+ `.bug` / `.warn` / `.info`) avec un `.tag` pour chaque constat · `pre` pour la mesure ·
+`.fix` pour la correction proposée · `ul.ok` pour ce qui fonctionne · `figure` (+ `.flag`
+si la capture montre un problème).
 
 Ouvre-le avec l'outil de la plateforme : `open` (macOS), `xdg-open` (Linux),
 `start` (Windows).
