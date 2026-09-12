@@ -1,8 +1,8 @@
 {
   "name": "qa-audit",
   "displayName": "QA Audit",
-  "version": "1.2.0",
-  "description": "Live QA audits for web projects. Drives a real browser, adapts its test plan to the project, measures with built-in probes and produces a self-contained HTML report — with the discipline to avoid false positives.",
+  "version": "2.0.0",
+  "description": "Audits a web project in a visible browser — console, accessibility, responsive, links, media — and produces a self-contained HTML report. Proposes a plan and waits for your go-ahead before running anything.",
   "author": {
     "name": "Vincent Morin"
   },
