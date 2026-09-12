@@ -100,8 +100,31 @@ playwright-cli open <URL> --browser=chrome --headed
 Retire `--browser=chrome` si Chrome est absent ; le chromium embarqué prend le relais.
 
 Range les artefacts dans `.qa-audit/` à la racine du projet, et propose de l'ajouter au
-`.gitignore`. Capture les images en **`.jpg`** — environ cinq fois plus léger que le PNG,
-ce qui garde le rapport partageable.
+`.gitignore`.
+
+### Prends des captures
+
+Une capture par chapitre, plus une par constat visuel. Sans elles, le rapport n'est qu'une
+liste d'affirmations.
+
+```bash
+playwright-cli screenshot --filename=.qa-audit/screenshots/01-accueil.jpg
+```
+
+Toujours en **`.jpg`** : environ cinq fois plus léger que le PNG, ce qui garde le rapport
+partageable une fois les images embarquées.
+
+Pour montrer un problème, encadre l'élément fautif **avant** de capturer, puis retire le
+surlignage :
+
+```bash
+playwright-cli highlight "<sélecteur>" --style="outline: 3px solid #ff2d2d; outline-offset: 4px"
+playwright-cli screenshot --filename=.qa-audit/screenshots/03-contraste.jpg
+playwright-cli highlight --hide
+```
+
+Le `--hide` n'est pas optionnel : un surlignage laissé actif pollue les captures suivantes
+**et fait échouer les clics** sur les petites cibles (voir les pièges plus bas).
 
 ### Mesure, ne décris pas
 
