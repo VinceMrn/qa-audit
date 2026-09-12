@@ -193,78 +193,144 @@ réutiliser.
 
 ## 6. Rapport
 
-Écris un unique fichier HTML autoportant dans `.qa-audit/report.html` : aucun asset
-externe, captures embarquées en base64, et un `<meta charset="utf-8">` — sans lui, les
-accents deviennent illisibles.
+Un seul fichier HTML autoportant dans `.qa-audit/report.html` : aucun asset externe,
+captures embarquées en base64, `<meta charset="utf-8">` obligatoire (sans lui les accents
+deviennent illisibles).
 
-Structure : en-tête avec l'URL et la date · quatre chiffres clés · les constats du plus
-grave au moins grave, chacun portant sa **mesure** · ce qui fonctionne · les captures,
-celles qui montrent un problème encadrées en rouge.
+**Le rapport est en onglets, pas en page longue.** L'en-tête et les quatre chiffres clés
+restent visibles ; le reste se répartit entre *Constats*, *Ce qui fonctionne* et
+*Captures*. Chaque constat est un `<details>` replié — seul le premier est ouvert — donc la
+liste des problèmes tient sur un écran et on déplie ce qu'on veut lire. Thème clair
+uniquement : un rapport se lit et s'imprime, il n'a pas à suivre le thème système.
 
-Le style ci-dessous, **en thème clair uniquement** — un rapport se lit et s'imprime, il
-n'a pas à suivre le thème système. Reprends-le tel quel : des cartes blanches sur fond
-gris très clair, une ombre douce plutôt qu'une bordure, et une teinte de gravité sur le
-bord gauche de chaque constat.
+Reprends ce squelette tel quel, en remplaçant seulement le contenu :
 
 ```html
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Audit QA</title>
 <style>
-  :root { --bg:#f5f6f8; --panel:#fff; --ink:#15171c; --muted:#71767f; --line:#e7e9ee;
-          --accent:#e85d26; --red:#dc2626; --amber:#d97706; --green:#059669;
-          --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.05); }
-  * { box-sizing:border-box; }
-  body { background:var(--bg); color:var(--ink); margin:0 auto; max-width:940px;
-         padding:56px 24px 80px; font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif; }
-  .kicker { font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.18em;
-            text-transform:uppercase; color:var(--accent); margin-bottom:14px; }
-  h1 { font-size:40px; line-height:1.1; letter-spacing:-.025em; margin:0 0 14px; font-weight:680; }
-  h1 span { color:var(--accent); }
-  .meta { display:flex; flex-wrap:wrap; gap:6px 24px; font-size:13.5px; color:var(--muted);
-          padding-bottom:32px; border-bottom:1px solid var(--line); }
-  .meta b { color:var(--ink); font-weight:600; }
-  h2 { font-size:12px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
-       color:var(--muted); margin:46px 0 18px; }
-  .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
-  .metric { background:var(--panel); border-radius:14px; padding:22px 20px; box-shadow:var(--shadow); }
-  .metric .n { font-size:34px; font-weight:680; line-height:1; letter-spacing:-.03em; }
-  .metric .l { font-size:12.5px; color:var(--muted); margin-top:8px; }
-  .metric.good .n { color:var(--green); } .metric.warn .n { color:var(--amber); }
-  .metric.bad .n { color:var(--red); }
-  .card { background:var(--panel); border-radius:14px; padding:24px; margin-bottom:14px;
-          box-shadow:var(--shadow); border-left:3px solid transparent; }
-  .bug  { border-left-color:var(--red);   background:linear-gradient(90deg,#fef4f3 0%,#fff 22%); }
-  .warn { border-left-color:var(--amber); background:linear-gradient(90deg,#fff9ef 0%,#fff 22%); }
-  .info { border-left-color:#2563eb;      background:linear-gradient(90deg,#f2f6ff 0%,#fff 22%); }
-  .card h3 { margin:0 0 10px; font-size:17.5px; letter-spacing:-.01em; }
-  .tag { display:inline-block; font:600 10px/1 ui-monospace,Menlo,monospace; letter-spacing:.1em;
-         text-transform:uppercase; padding:5px 9px; border-radius:6px; color:#fff; margin-bottom:12px; }
-  .bug .tag { background:var(--red); } .warn .tag { background:var(--amber); } .info .tag { background:#2563eb; }
-  .card p { margin:0 0 14px; }
-  pre { background:#f7f8fa; border:1px solid var(--line); border-radius:10px; padding:15px;
-        overflow-x:auto; font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace; margin:0 0 14px; }
-  .fix { background:#f7f8fa; border-radius:10px; padding:14px 16px; font-size:14px; margin:0!important; }
-  ul.ok { list-style:none; margin:0; padding:8px 24px; background:var(--panel);
-          border-radius:14px; box-shadow:var(--shadow); }
-  ul.ok li { padding:14px 0 14px 28px; border-top:1px solid var(--line); position:relative; }
-  ul.ok li:first-child { border-top:none; }
-  ul.ok li::before { content:"\2713"; position:absolute; left:0; top:14px; color:var(--green); font-weight:700; }
-  ul.ok b { display:block; font-size:14.5px; } ul.ok span { font-size:13px; color:var(--muted); }
-  figure { margin:0 0 16px; background:var(--panel); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); }
-  figure img { display:block; width:100%; }
-  figure figcaption { padding:14px 18px; font-size:13px; color:var(--muted); }
-  figure.flag { box-shadow:0 0 0 2px var(--red), var(--shadow); }
-  footer { margin-top:56px; padding-top:20px; border-top:1px solid var(--line);
-           font-size:12.5px; color:var(--muted); }
-</style>
+  :root{--bg:#f5f6f8;--panel:#fff;--ink:#15171c;--muted:#71767f;--line:#e7e9ee;
+    --accent:#e85d26;--red:#dc2626;--amber:#d97706;--green:#059669;--blue:#2563eb;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05)}
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;
+    font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:0 24px}
+  header{padding:52px 0 28px}
+  .kicker{font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  h1{font-size:38px;line-height:1.1;letter-spacing:-.025em;margin:0 0 14px;font-weight:680}
+  h1 span{color:var(--accent)}
+  .meta{display:flex;flex-wrap:wrap;gap:6px 24px;font-size:13.5px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:600}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;padding-bottom:28px}
+  .metric{background:var(--panel);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+  .metric .n{font-size:32px;font-weight:680;line-height:1;letter-spacing:-.03em}
+  .metric .l{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .metric.good .n{color:var(--green)}.metric.warn .n{color:var(--amber)}.metric.bad .n{color:var(--red)}
+  nav.tabs{position:sticky;top:0;z-index:10;background:rgba(245,246,248,.88);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto}
+  nav.tabs button{appearance:none;background:none;border:none;cursor:pointer;font:600 14px/1 inherit;
+    color:var(--muted);padding:16px 14px;border-bottom:2px solid transparent;white-space:nowrap}
+  nav.tabs button:hover{color:var(--ink)}
+  nav.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+  .count{display:inline-block;margin-left:7px;font:600 11px/1 ui-monospace,Menlo,monospace;
+    background:var(--line);color:var(--muted);padding:4px 7px;border-radius:20px;vertical-align:1px}
+  button[aria-selected=true] .count{background:var(--accent);color:#fff}
+  [role=tabpanel]{padding:32px 0 80px}
+  [role=tabpanel][hidden]{display:none}
+  details.card{background:var(--panel);border-radius:14px;margin-bottom:12px;
+    box-shadow:var(--shadow);border-left:3px solid transparent;overflow:hidden}
+  details.bug{border-left-color:var(--red)}
+  details.warn{border-left-color:var(--amber)}
+  details.info{border-left-color:var(--blue)}
+  summary{list-style:none;cursor:pointer;padding:20px 24px;display:flex;align-items:center;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary:hover{background:#fafbfc}
+  .tag{flex:none;font:600 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.08em;
+    text-transform:uppercase;padding:5px 8px;border-radius:6px;color:#fff}
+  .bug .tag{background:var(--red)}.warn .tag{background:var(--amber)}.info .tag{background:var(--blue)}
+  summary h3{margin:0;font-size:16.5px;font-weight:620;letter-spacing:-.01em;flex:1}
+  .chev{flex:none;color:var(--muted);transition:transform .2s}
+  details[open] .chev{transform:rotate(90deg)}
+  .body{padding:0 24px 24px}
+  .body p{margin:0 0 14px}
+  pre{background:#f7f8fa;border:1px solid var(--line);border-radius:10px;padding:15px;
+    overflow-x:auto;font:12.5px/1.7 ui-monospace,Menlo,monospace;margin:0 0 14px}
+  .fix{background:#f7f8fa;border-radius:10px;padding:14px 16px;font-size:14px;margin:0!important}
+  ul.ok{list-style:none;margin:0;padding:8px 24px;background:var(--panel);
+    border-radius:14px;box-shadow:var(--shadow)}
+  ul.ok li{padding:14px 0 14px 28px;border-top:1px solid var(--line);position:relative}
+  ul.ok li:first-child{border-top:none}
+  ul.ok li::before{content:"\2713";position:absolute;left:0;top:14px;color:var(--green);font-weight:700}
+  ul.ok b{display:block;font-size:14.5px}ul.ok span{font-size:13px;color:var(--muted)}
+  .shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
+  figure{margin:0;background:var(--panel);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  figure img{display:block;width:100%}
+  figcaption{padding:14px 18px;font-size:13px;color:var(--muted)}
+  figcaption b{display:block;color:var(--ink);font-size:13.5px}
+  figure.flag{box-shadow:0 0 0 2px var(--red),var(--shadow)}
+  footer{border-top:1px solid var(--line);padding:22px 0 60px;font-size:12.5px;color:var(--muted)}
+  @media(max-width:560px){h1{font-size:30px}.shots{grid-template-columns:1fr}}
+</style></head><body>
+
+<div class="wrap"><header>
+  <div class="kicker">Rapport d'audit</div>
+  <h1>Audit QA — <span>NOM DU PROJET</span></h1>
+  <div class="meta"><div><b>URL</b> …</div><div><b>Date</b> …</div>
+    <div><b>Navigateur</b> Chrome headed</div><div><b>Viewports</b> …</div></div>
+</header>
+<div class="metrics">
+  <div class="metric bad"><div class="n">…</div><div class="l">…</div></div>
+  <!-- quatre au total : bad / warn / good / neutre selon le chiffre -->
+</div></div>
+
+<nav class="tabs"><div class="wrap" role="tablist">
+  <button role="tab" aria-selected="true"  aria-controls="p1">Constats <span class="count">3</span></button>
+  <button role="tab" aria-selected="false" aria-controls="p2">Ce qui fonctionne <span class="count">6</span></button>
+  <button role="tab" aria-selected="false" aria-controls="p3">Captures <span class="count">4</span></button>
+</div></nav>
+
+<div class="wrap">
+<section id="p1" role="tabpanel">
+  <details class="card bug" open><summary><span class="tag">Bug</span>
+    <h3>Titre du constat</h3><span class="chev">&rsaquo;</span></summary>
+    <div class="body">
+      <p>Ce qui se passe et pourquoi ça compte.</p>
+      <pre>la mesure qui le prouve</pre>
+      <p class="fix"><b>Correction —</b> quoi changer.</p>
+    </div></details>
+  <!-- les suivants sans `open`, classe .warn ou .info -->
+</section>
+
+<section id="p2" role="tabpanel" hidden>
+  <ul class="ok"><li><b>Titre</b><span>Détail mesuré.</span></li></ul>
+</section>
+
+<section id="p3" role="tabpanel" hidden>
+  <div class="shots">
+    <figure><img src="data:image/jpeg;base64,…" alt="">
+      <figcaption><b>Titre</b>Légende.</figcaption></figure>
+    <!-- figure.flag si la capture montre un problème -->
+  </div>
+</section>
+<footer>Généré par le skill qa-audit · DATE</footer>
+</div>
+
+<script>
+  const tabs=[...document.querySelectorAll('[role=tab]')];
+  tabs.forEach(t=>t.onclick=()=>{
+    tabs.forEach(o=>{o.setAttribute('aria-selected',o===t);
+      document.getElementById(o.getAttribute('aria-controls')).hidden=o!==t});
+    scrollTo({top:0,behavior:'smooth'});
+  });
+</script></body></html>
 ```
 
-Les classes attendues : `.kicker` et `h1 span` pour le titre · `.meta` pour la ligne
-URL/date · `.metric` (+ `.good` / `.warn` / `.bad`) pour les chiffres clés · `.card`
-(+ `.bug` / `.warn` / `.info`) avec un `.tag` pour chaque constat · `pre` pour la mesure ·
-`.fix` pour la correction proposée · `ul.ok` pour ce qui fonctionne · `figure` (+ `.flag`
-si la capture montre un problème).
-
-Ouvre-le avec l'outil de la plateforme : `open` (macOS), `xdg-open` (Linux),
-`start` (Windows).
+Les compteurs des onglets doivent correspondre au nombre réel d'éléments de chaque
+panneau. Ouvre le rapport avec l'outil de la plateforme : `open` (macOS),
+`xdg-open` (Linux), `start` (Windows).
 
 ---
 
